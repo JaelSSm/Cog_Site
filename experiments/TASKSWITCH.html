@@ -305,37 +305,40 @@ window.addEventListener('keydown', function (e) {
                 timeline.push(ceResultsScreen(jsPsych, {
                     compute: function (jp) {
                         const en = (document.documentElement.lang === 'en');
-                        const all = jp.data.get().filter({ task: 'response' });
-                        const correct = all.filter({ correct: true });
-                        const errorRate = all.count() > 0
-                            ? Math.round(((all.count() - correct.count()) / all.count()) * 100) : 0;
+                        const trials   = jp.data.get().filter({ task: 'response' });
+                        const answered = trials.filter(function (t) { return t.rt !== null; });
+                        const correct  = trials.filter({ correct: true });
+                        const wrong    = answered.count() - correct.count();
+                        const missed   = trials.count() - answered.count();
 
-                        const rtSwitch   = Math.round(correct.filter({ transition: 'switch' }).select('rt').mean()) || 0;
-                        const rtRepeat   = Math.round(correct.filter({ transition: 'repeat' }).select('rt').mean()) || 0;
-                        const rtPure     = Math.round(correct.filter({ transition: 'pure'   }).select('rt').mean()) || 0;
+                        const rtPure   = Math.round(correct.filter({ transition: 'pure'   }).select('rt').mean()) || 0;
+                        const rtRepeat = Math.round(correct.filter({ transition: 'repeat' }).select('rt').mean()) || 0;
+                        const rtSwitch = Math.round(correct.filter({ transition: 'switch' }).select('rt').mean()) || 0;
 
-                        const switchCost = (rtSwitch && rtRepeat) ? (rtSwitch - rtRepeat) : 0;
-                        const mixingCost = (rtRepeat && rtPure)   ? (rtRepeat - rtPure)   : 0;
+                    const rows = [
+                        { label_hu: 'Helyes válaszok', label_en: 'Correct responses',   value: correct.count() },
+                        { label_hu: 'Hibás válaszok',  label_en: 'Incorrect responses', value: wrong }
+                    ];
+                    if (missed > 0) {
+                        rows.push({ label_hu: 'Nem válaszolt', label_en: 'No response', value: missed });
+                    }
+                        rows.push({ label_hu: 'Átlagos reakcióidő', label_en: 'Mean reaction time',
+                                    value: (Math.round(correct.select('rt').mean()) || 0) + ' ms' });
+                        rows.push({ label_hu: 'Reakcióidő — tiszta blokk',     label_en: 'RT — pure block',      value: rtPure + ' ms' });
+                        rows.push({ label_hu: 'Reakcióidő — ismétlés',         label_en: 'RT — repeat',          value: rtRepeat + ' ms' });
+                        rows.push({ label_hu: 'Reakcióidő — váltás',           label_en: 'RT — switch',          value: rtSwitch + ' ms' });
 
                         return {
-                            rows: [
-                                { label_hu: 'Hibaarány', label_en: 'Error rate', value: errorRate + '%' },
-                                { label_hu: 'Reakcióidő — tiszta blokk', label_en: 'RT — pure block', value: rtPure + ' ms' },
-                                { label_hu: 'Reakcióidő — ismétlés (kevert)', label_en: 'RT — repeat (mixed)', value: rtRepeat + ' ms' },
-                                { label_hu: 'Reakcióidő — váltás (kevert)', label_en: 'RT — switch (mixed)', value: rtSwitch + ' ms' },
-                                { label_hu: 'Váltási költség', label_en: 'Switch cost', value: switchCost + ' ms' },
-                                { label_hu: 'Keverési költség', label_en: 'Mixing cost', value: mixingCost + ' ms' }
-                            ],
+                            rows: rows,
                             chart: {
                                 kind: 'bar',
-                                title: en ? 'Switch cost and mixing cost' : 'Váltási és keverési költség',
+                                title: en ? 'Reaction time by trial type' : 'Reakcióidő próbatípusonként',
                                 bars: [
-                                    { label: en ? 'Switch cost' : 'Váltási',  value: switchCost, unit: 'ms' },
-                                    { label: en ? 'Mixing cost' : 'Keverési', value: mixingCost, unit: 'ms' }
+                                    { label: en ? 'Pure'   : 'Tiszta',   value: rtPure,   unit: 'ms' },
+                                    { label: en ? 'Repeat' : 'Ismétlés', value: rtRepeat, unit: 'ms' },
+                                    { label: en ? 'Switch' : 'Váltás',   value: rtSwitch, unit: 'ms' }
                                 ]
-                            },
-                            note_hu: 'Váltási költség = váltás − ismétlés (kevert blokkon belül). Keverési költség = ismétlés (kevert) − tiszta blokk.',
-                            note_en: 'Switch cost = switch − repeat (within mixed blocks). Mixing cost = repeat (mixed) − pure block.'
+                            }
                         };
                     }
                 }));

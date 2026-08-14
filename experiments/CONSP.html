@@ -275,13 +275,14 @@ ceChooseDuration().then(function (choice) {
     timeline.push(ceResultsScreen(jsPsych, {
         compute: function (jp) {
             const en = (document.documentElement.lang === 'en');
-            const trials  = jp.data.get().filter({ task: 'response' });
-            const correct = trials.filter({ correct: true });
-            const accuracy = trials.count() > 0
-                ? Math.round((correct.count() / trials.count()) * 100) : 0;
+            const trials   = jp.data.get().filter({ task: 'response' });
+            const answered = trials.filter(function (t) { return t.rt !== null; });
+            const correct  = trials.filter({ correct: true });
+            const wrong    = answered.count() - correct.count();
+            const missed   = trials.count() - answered.count();
+
             const rtRepeated = Math.round(correct.filter({ condition: 'repeated' }).select('rt').mean()) || 0;
             const rtNovel    = Math.round(correct.filter({ condition: 'novel'    }).select('rt').mean()) || 0;
-            const cueing     = (rtRepeated && rtNovel) ? (rtNovel - rtRepeated) : 0;
 
             /* per-block mean RT for each condition */
             const repPts = [], novPts = [];
@@ -293,24 +294,29 @@ ceChooseDuration().then(function (choice) {
                 if (nov) novPts.push({ x: b, y: nov });
             }
 
+                    const rows = [
+                        { label_hu: 'Helyes válaszok', label_en: 'Correct responses',   value: correct.count() },
+                        { label_hu: 'Hibás válaszok',  label_en: 'Incorrect responses', value: wrong }
+                    ];
+                    if (missed > 0) {
+                        rows.push({ label_hu: 'Nem válaszolt', label_en: 'No response', value: missed });
+                    }
+            rows.push({ label_hu: 'Átlagos reakcióidő', label_en: 'Mean reaction time',
+                        value: (Math.round(correct.select('rt').mean()) || 0) + ' ms' });
+            rows.push({ label_hu: 'Reakcióidő — ismételt', label_en: 'RT — repeated', value: rtRepeated + ' ms' });
+            rows.push({ label_hu: 'Reakcióidő — új',       label_en: 'RT — novel',    value: rtNovel + ' ms' });
+
             return {
-                rows: [
-                    { label_hu: 'Pontosság', label_en: 'Accuracy', value: accuracy + '%' },
-                    { label_hu: 'Reakcióidő — ismételt', label_en: 'RT — repeated', value: rtRepeated + ' ms' },
-                    { label_hu: 'Reakcióidő — új', label_en: 'RT — novel', value: rtNovel + ' ms' },
-                    { label_hu: 'Kontextuális előhívási hatás', label_en: 'Contextual cueing effect', value: cueing + ' ms' }
-                ],
+                rows: rows,
                 chart: {
                     kind: 'line',
-                    title: en ? 'Implicit learning: RT by block' : 'Implicit tanulás: reakcióidő blokkonként',
+                    title: en ? 'Reaction time by block' : 'Reakcióidő blokkonként',
                     xLabel: en ? 'Block' : 'Blokk',
                     series: [
                         { label: en ? 'Repeated' : 'Ismételt', points: repPts },
                         { label: en ? 'Novel'    : 'Új',       points: novPts }
                     ]
-                },
-                note_hu: 'Az ismételt elrendezések reakcióideje idővel az új elrendezések alá csökken — ez a kontextuális tanulás. Rövid futtatásnál a hatás gyakran még nem látszik.',
-                note_en: 'Repeated layouts drop below novel ones over blocks — this gap is the contextual learning effect. In short runs it often has not emerged yet.'
+                }
             };
         }
     }));

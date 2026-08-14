@@ -191,28 +191,36 @@ window.addEventListener('keydown', function (e) {
             // "debriefing" == charted result screening
             timeline.push(ceResultsScreen(jsPsych, {
                 compute: function (jp) {
-                    const trials  = jp.data.get().filter({ task: 'response' });
-                    const correct = trials.filter({ correct: true });
-                    const accuracy = trials.count() > 0
-                        ? Math.round((correct.count() / trials.count()) * 100) : 0;
+                    const en = (document.documentElement.lang === 'en');
+                    const trials   = jp.data.get().filter({ task: 'response' });
+                    const answered = trials.filter(function (t) { return t.rt !== null; });
+                    const correct  = trials.filter({ correct: true });
+                    const wrong    = answered.count() - correct.count();
+                    const missed   = trials.count() - answered.count();
+
                     const rtCong   = Math.round(correct.filter({ condition: 'congruent'   }).select('rt').mean()) || 0;
                     const rtIncong = Math.round(correct.filter({ condition: 'incongruent' }).select('rt').mean()) || 0;
+
+                    const rows = [
+                        { label_hu: 'Helyes válaszok', label_en: 'Correct responses',   value: correct.count() },
+                        { label_hu: 'Hibás válaszok',  label_en: 'Incorrect responses', value: wrong }
+                    ];
+                    if (missed > 0) {
+                        rows.push({ label_hu: 'Nem válaszolt', label_en: 'No response', value: missed });
+                    }
+                    rows.push({ label_hu: 'Átlagos reakcióidő', label_en: 'Mean reaction time',
+                                value: (Math.round(correct.select('rt').mean()) || 0) + ' ms' });
+                    rows.push({ label_hu: 'Reakcióidő — kongruens',   label_en: 'RT — congruent',   value: rtCong + ' ms' });
+                    rows.push({ label_hu: 'Reakcióidő — inkongruens', label_en: 'RT — incongruent', value: rtIncong + ' ms' });
+
                     return {
-                        rows: [
-                            { label_hu: 'Pontosság', label_en: 'Accuracy', value: accuracy + '%' },
-                            { label_hu: 'Átlagos reakcióidő', label_en: 'Mean reaction time',
-                            value: (Math.round(correct.select('rt').mean()) || 0) + ' ms' },
-                            { label_hu: 'Reakcióidő — kongruens', label_en: 'RT — congruent', value: rtCong + ' ms' },
-                            { label_hu: 'Reakcióidő — inkongruens', label_en: 'RT — incongruent', value: rtIncong + ' ms' },
-                            { label_hu: 'Flanker-hatás', label_en: 'Flanker effect',
-                            value: ((rtCong && rtIncong) ? (rtIncong - rtCong) : 0) + ' ms' }
-                        ],
+                        rows: rows,
                         chart: {
                             kind: 'bar',
-                            title: (document.documentElement.lang === 'en' ? 'Reaction time by condition' : 'Reakcióidő feltételenként'),
+                            title: en ? 'Reaction time by condition' : 'Reakcióidő feltételenként',
                             bars: [
-                                { label: (document.documentElement.lang === 'en' ? 'Congruent' : 'Kongruens'),   value: rtCong,   unit: 'ms' },
-                                { label: (document.documentElement.lang === 'en' ? 'Incongruent' : 'Inkongruens'), value: rtIncong, unit: 'ms' }
+                                { label: en ? 'Congruent'   : 'Kongruens',   value: rtCong,   unit: 'ms' },
+                                { label: en ? 'Incongruent' : 'Inkongruens', value: rtIncong, unit: 'ms' }
                             ]
                         }
                     };

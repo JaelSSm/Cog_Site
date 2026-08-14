@@ -280,40 +280,51 @@ ceChooseDuration().then(function (choice) {
         compute: function (jp) {
             const en = (document.documentElement.lang === 'en');
 
-            /* Section I */
-            const id        = jp.data.get().filter({ task: 'identity' });
-            const idCorrect = id.filter({ correct: true });
-            const idAcc     = id.count() > 0 ? Math.round((idCorrect.count() / id.count()) * 100) : 0;
-            const idRt      = Math.round(idCorrect.select('rt').mean()) || 0;
+            /* Section I — identity */
+            const id         = jp.data.get().filter({ task: 'identity' });
+            const idAnswered = id.filter(function (t) { return t.rt !== null; });
+            const idCorrect  = id.filter({ correct: true });
+            const idWrong    = idAnswered.count() - idCorrect.count();
 
-            /* Section II — exclude unscored reference trials */
-            const rb        = jp.data.get().filter({ task: 'refback' });
-            const scored    = rb.filter(function (t) { return t.correct !== null; });
-            const rbCorrect = scored.filter({ correct: true });
-            const rbAcc     = scored.count() > 0 ? Math.round((rbCorrect.count() / scored.count()) * 100) : 0;
+            /* Section II — reference-back, excluding the unscored reference trials */
+            const rb         = jp.data.get().filter({ task: 'refback' });
+            const scored     = rb.filter(function (t) { return t.correct !== null; });
+            const rbAnswered = scored.filter(function (t) { return t.rt !== null; });
+            const rbCorrect  = scored.filter({ correct: true });
+            const rbWrong    = rbAnswered.count() - rbCorrect.count();
 
+            const missed = (id.count() - idAnswered.count()) + (scored.count() - rbAnswered.count());
+
+            const idRt       = Math.round(idCorrect.select('rt').mean()) || 0;
             const rtMatch    = Math.round(rbCorrect.filter({ is_match: true  }).select('rt').mean()) || 0;
             const rtMismatch = Math.round(rbCorrect.filter({ is_match: false }).select('rt').mean()) || 0;
+            const rbRt       = Math.round(rbCorrect.select('rt').mean()) || 0;
+
+            const rows = [
+                { label_hu: 'Helyes válaszok', label_en: 'Correct responses',
+                  value: (idCorrect.count() + rbCorrect.count()) },
+                { label_hu: 'Hibás válaszok', label_en: 'Incorrect responses',
+                  value: (idWrong + rbWrong) }
+            ];
+            if (missed > 0) {
+                rows.push({ label_hu: 'Nem válaszolt', label_en: 'No response', value: missed });
+            }
+            rows.push({ label_hu: 'I. szakasz — reakcióidő',  label_en: 'Section I — reaction time',  value: idRt + ' ms' });
+            rows.push({ label_hu: 'II. szakasz — reakcióidő', label_en: 'Section II — reaction time', value: rbRt + ' ms' });
+            rows.push({ label_hu: 'Reakcióidő — egyezés',     label_en: 'RT — match',                 value: rtMatch + ' ms' });
+            rows.push({ label_hu: 'Reakcióidő — eltérés',     label_en: 'RT — mismatch',              value: rtMismatch + ' ms' });
 
             return {
-                rows: [
-                    { label_hu: 'I. szakasz — pontosság',    label_en: 'Section I — accuracy',       value: idAcc + '%' },
-                    { label_hu: 'I. szakasz — reakcióidő',   label_en: 'Section I — reaction time',  value: idRt + ' ms' },
-                    { label_hu: 'II. szakasz — pontosság',   label_en: 'Section II — accuracy',      value: rbAcc + '%' },
-                    { label_hu: 'Reakcióidő — egyezés',      label_en: 'RT — match',                 value: rtMatch + ' ms' },
-                    { label_hu: 'Reakcióidő — eltérés',      label_en: 'RT — mismatch',              value: rtMismatch + ' ms' }
-                ],
+                rows: rows,
                 chart: {
                     kind: 'bar',
-                    title: en ? 'Section II: reaction time by trial type'
-                              : 'II. szakasz: reakcióidő próbatípusonként',
+                    title: en ? 'Reaction time by trial type' : 'Reakcióidő próbatípusonként',
                     bars: [
-                        { label: en ? 'Match'    : 'Egyezés', value: rtMatch,    unit: 'ms' },
-                        { label: en ? 'Mismatch' : 'Eltérés', value: rtMismatch, unit: 'ms' }
+                        { label: en ? 'Section I' : 'I. szakasz', value: idRt,       unit: 'ms' },
+                        { label: en ? 'Match'     : 'Egyezés',    value: rtMatch,    unit: 'ms' },
+                        { label: en ? 'Mismatch'  : 'Eltérés',    value: rtMismatch, unit: 'ms' }
                     ]
-                },
-                note_hu: 'A II. szakasz a munkamemória frissítését méri: a piros keretes betű frissíti a referenciát, a kék keretes nem.',
-                note_en: 'Section II measures working-memory updating: a red-framed letter updates the reference, a blue-framed one does not.'
+                }
             };
         }
     }));

@@ -305,42 +305,38 @@ window.addEventListener('keydown', function (e) {
             timeline.push(ceResultsScreen(jsPsych,{
                 compute: function(jp){
                     const en = (document.documentElement.lang === 'en');
-                    const trials = jp.data.get().filter({task: 'response'});
+                    const trials   = jp.data.get().filter({ task: 'response' });
                     const answered = trials.filter(function (t) { return t.rt !== null; });
-                    const correct = trials.filter({correct: true});
-                    const accuracy = trials.count() > 0 ? Math.round((correct.count() / trials.count()) * 100) : 0;
-                    const meanRt = function(sel){return Math.round(correct.filter(sel).select('rt').mean()) || 0;};
+                    const correct  = trials.filter({ correct: true });
+                    const wrong    = answered.count() - correct.count();
+                    const missed   = trials.count() - answered.count();
+                    const meanRt   = function (sel) { return Math.round(correct.filter(sel).select('rt').mean()) || 0; };
 
-                    const rtNoCue = meanRt({cue: 'none'});
-                    const rtDoubleCue = meanRt({cue: 'double'});
-                    const rtCenterCue = meanRt({cue: 'center'});
-                    const rtSpatialCue = meanRt({cue: 'spatial'});
-                    const rtCong = meanRt({congruency: 'congruent'});
-                    const rtIncong = meanRt({congruency: 'incongruent'});
+                    const rtNoCue      = meanRt({ cue: 'none'    });
+                    const rtCenterCue  = meanRt({ cue: 'center'  });
+                    const rtDoubleCue  = meanRt({ cue: 'double'  });
+                    const rtSpatialCue = meanRt({ cue: 'spatial' });
 
-                    const alerting = (rtNoCue && rtDoubleCue) ? (rtNoCue - rtDoubleCue): 0;
-                    const orienting = (rtCenterCue && rtSpatialCue) ? (rtCenterCue - rtSpatialCue): 0;
-                    const executive = (rtIncong && rtCong) ? (rtIncong - rtCong): 0;
+                    const rows = [
+                        { label_hu: 'Helyes válaszok', label_en: 'Correct responses',   value: correct.count() },
+                        { label_hu: 'Hibás válaszok',  label_en: 'Incorrect responses', value: wrong }
+                    ];
+                    if (missed > 0) {
+                        rows.push({ label_hu: 'Nem válaszolt', label_en: 'No response', value: missed });
+                    }
+                    rows.push({ label_hu: 'Átlagos reakcióidő', label_en: 'Mean reaction time',
+                                value: (Math.round(correct.select('rt').mean()) || 0) + ' ms' });
 
                     return {
-                        rows: [
-                            { label_hu: 'Értékelt válaszok', label_en: 'Responses recorded',
-                              value: answered.count() + ' / ' + trials.count() },
-                            { label_hu: 'Pontosság', label_en: 'Accuracy', value: accuracy + '%' },
-                            { label_hu: 'Átlagos reakcióidő', label_en: 'Mean reaction time',
-                            value: (Math.round(correct.select('rt').mean()) || 0) + ' ms' },
-                            { label_hu: 'Éberség (alerting)', label_en: 'Alerting', value: alerting + ' ms' },
-                            { label_hu: 'Orientáció (orienting)', label_en: 'Orienting', value: orienting + ' ms' },
-                            { label_hu: 'Végrehajtó kontroll', label_en: 'Executive control', value: executive + ' ms' }
-                        ],
+                        rows: rows,
                         chart: {
                             kind: 'bar',
                             title: en ? 'Reaction time by cue type' : 'Reakcióidő jelzéstípusonként',
                             bars: [
-                                { label: en ? 'No cue'   : 'Nincs',    value: rtNoCue,     unit: 'ms' },
-                                { label: en ? 'Center'   : 'Központi', value: rtCenterCue, unit: 'ms' },
-                                { label: en ? 'Double'   : 'Dupla',    value: rtDoubleCue, unit: 'ms' },
-                                { label: en ? 'Spatial'  : 'Téri',     value: rtSpatialCue,   unit: 'ms' }
+                                { label: en ? 'No cue'  : 'Nincs',    value: rtNoCue,      unit: 'ms' },
+                                { label: en ? 'Center'  : 'Központi', value: rtCenterCue,  unit: 'ms' },
+                                { label: en ? 'Double'  : 'Dupla',    value: rtDoubleCue,  unit: 'ms' },
+                                { label: en ? 'Spatial' : 'Téri',     value: rtSpatialCue, unit: 'ms' }
                             ]
                         }
                     };
