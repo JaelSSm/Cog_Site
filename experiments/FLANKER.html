@@ -65,8 +65,8 @@
                 document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
             } catch (e) { document.documentElement.lang = 'hu'; }
 
-/* ---- cog_site build 2026-08-12-b — FLANKER ---- */
-console.log('[cog_site] FLANKER build 2026-08-12-b');
+/* ---- cog_site build 2026-08-14-c — FLANKER ---- */
+console.log('[cog_site] FLANKER build 2026-08-14-c');
 
 /* Stop SPACE and the arrow keys from scrolling the page mid-trial.
    preventDefault only — jsPsych's own listener still receives the event. */
@@ -193,7 +193,7 @@ window.addEventListener('keydown', function (e) {
                 compute: function (jp) {
                     const en = (document.documentElement.lang === 'en');
                     const trials   = jp.data.get().filter({ task: 'response' });
-                    const answered = trials.filter(function (t) { return t.rt !== null; });
+                    const answered = trials.filterCustom(function (t) { return t.rt !== null; });
                     const correct  = trials.filter({ correct: true });
                     const wrong    = answered.count() - correct.count();
                     const missed   = trials.count() - answered.count();

@@ -28,8 +28,8 @@ try {
     document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
 } catch (e) { document.documentElement.lang = 'hu'; }
 
-/* ---- cog_site build 2026-08-12-b — REFBACK ---- */
-console.log('[cog_site] REFBACK build 2026-08-12-b');
+/* ---- cog_site build 2026-08-14-c — REFBACK ---- */
+console.log('[cog_site] REFBACK build 2026-08-14-c');
 
 /* Stop SPACE and the arrow keys from scrolling the page mid-trial.
    preventDefault only — jsPsych's own listener still receives the event. */
@@ -282,14 +282,14 @@ ceChooseDuration().then(function (choice) {
 
             /* Section I — identity */
             const id         = jp.data.get().filter({ task: 'identity' });
-            const idAnswered = id.filter(function (t) { return t.rt !== null; });
+            const idAnswered = id.filterCustom(function (t) { return t.rt !== null; });
             const idCorrect  = id.filter({ correct: true });
             const idWrong    = idAnswered.count() - idCorrect.count();
 
             /* Section II — reference-back, excluding the unscored reference trials */
             const rb         = jp.data.get().filter({ task: 'refback' });
-            const scored     = rb.filter(function (t) { return t.correct !== null; });
-            const rbAnswered = scored.filter(function (t) { return t.rt !== null; });
+            const scored     = rb.filterCustom(function (t) { return t.correct !== null; });
+            const rbAnswered = scored.filterCustom(function (t) { return t.rt !== null; });
             const rbCorrect  = scored.filter({ correct: true });
             const rbWrong    = rbAnswered.count() - rbCorrect.count();
 
