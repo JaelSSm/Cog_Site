@@ -1,0 +1,76 @@
+/* REFBACK.css — rendering styles for the Reference-back experiment.
+ * Linked from REFBACK.html. Keep this file in the same folder (experiments/).
+ */
+
+/* Ensure the jsPsych display container is visible. The content was
+   collapsing to zero WIDTH inside the flex wrapper, so give it an
+   explicit width and center it. */
+html, body { min-height: 100vh; margin: 0; }
+.jspsych-display-element {
+    width: 100%;
+    min-height: 100vh;
+}
+.jspsych-content-wrapper {
+    width: 100%;
+}
+.jspsych-content {
+    width: 100%;
+    max-width: 900px;
+    margin: auto;   /* NOT `0 auto` — jsPsych centres vertically with auto margins */
+}
+
+/* Bilingual: hide the inactive language */
+[lang="hu"] .en { display: none; }
+[lang="en"] .hu { display: none; }
+
+/* Page theme matching the rest of the site */
+body {
+    background: #FBF7EE;
+    color: #1F1B16;
+    font-family: "Public Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+    body { background: #181612; color: #E8E3D6; }
+}
+
+/* Fixation cross */
+.fixation { font-size: 60px; line-height: 1; }
+
+/* Reference-back stimulus: a coloured square frame holding a letter */
+.refback-frame {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    box-sizing: border-box;
+    border: 10px solid transparent;
+}
+.refback-frame.red  { border-color: #C0392B; }
+.refback-frame.blue { border-color: #2471A3; }
+
+.refback-letter {
+    font-size: 110px;
+    font-weight: 600;
+    line-height: 1;
+    color: #1F1B16;
+    font-family: "DejaVu Sans Mono", "Menlo", monospace;
+}
+@media (prefers-color-scheme: dark) {
+    .refback-letter { color: #E8E3D6; }
+}
+
+.instructions-text {
+    max-width: 580px;
+    margin: 0 auto;
+    line-height: 1.65;
+    font-size: 18px;
+}
+.instructions-text p { margin: 0 0 1.2rem; }
+.instructions-text p:last-child { margin-bottom: 0; }
+
+.debrief-table { margin: 1.5rem auto; border-collapse: collapse; font-size: 18px; }
+.debrief-table td { padding: 6px 18px; border-bottom: 1px solid rgba(0,0,0,0.12); text-align: left; }
+.debrief-table td:last-child { text-align: right; font-weight: 600; }

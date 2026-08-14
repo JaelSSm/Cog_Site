@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <title> Task Switching Paradigma (TS) </title>
+        
+        <script src="https://unpkg.com/jspsych@8.2.3"></script>
+        <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+        <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" />
+        <script src="ce-duration.js"></script>
+        <script src="ce-chart.js"></script>
+
+        <style>
+
+            /* jsPsych v8: .jspsych-content collapses to zero WIDTH inside the
+               flex wrapper. Give it explicit width and centre it. */
+            html, body { min-height: 100vh; margin: 0; }
+            .jspsych-display-element { width: 100%; min-height: 100vh; }
+            .jspsych-content-wrapper { width: 100%; }
+            .jspsych-content { width: 100%; max-width: 900px; margin: auto; }
+
+            /* Bilingual: hide the inactive language */
+            [lang="hu"] .en { display: none; }
+            [lang="en"] .hu { display: none; }
+
+            /* Page theme matching the rest of the site */
+            body {
+            background: #FBF7EE;
+            color: #1F1B16;
+            font-family: "Public Sans", system-ui, sans-serif;
+            }
+            @media (prefers-color-scheme: dark) {
+            body { background: #181612; color: #E8E3D6; }
+            }
+
+            /* Stimulus rendering */
+            .fixation { font-size: 60px; }
+
+            /* Coloured cue background behind the digit */
+            .ts-frame {
+                width: 220px;
+                height: 220px;
+                border-radius: 12px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin: 0 auto;
+            }
+            .ts-frame.parity    { background: #F4D03F; }  /* yellow — odd/even   */
+            .ts-frame.magnitude { background: #5DADE2; }  /* blue   — </> than 5 */
+            .ts-digit {
+                font-size: 120px;
+                font-weight: 600;
+                color: #1F1B16;
+                font-family: "DejaVu Sans Mono", "Menlo", monospace;
+                line-height: 1;
+            }
+
+            .instructions-text {
+                max-width: 600px;
+                margin: 0 auto;
+                line-height: 1.65;
+                font-size: 18px;
+            }
+            .instructions-text p { margin: 0 0 1.2rem; }
+            .instructions-text p:last-child { margin-bottom: 0; }
+
+            .debrief-table { margin: 1.5rem auto; border-collapse: collapse; font-size: 18px; }
+            .debrief-table td { padding: 6px 18px; border-bottom: 1px solid rgba(0,0,0,0.12); text-align: left; }
+            .debrief-table td:last-child { text-align: right; font-weight: 600; }
+        </style>
+    </head>
+    <body>
+        <script>
+
+            /* restore saved language */
+            try {
+                const savedLang = localStorage.getItem('ce.lang');
+                document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
+            } catch (e) { document.documentElement.lang = 'hu'; }
+
+/* ---- cog_site build 2026-08-12-b — TASKSWITCH ---- */
+console.log('[cog_site] TASKSWITCH build 2026-08-12-b');
+
+/* Stop SPACE and the arrow keys from scrolling the page mid-trial.
+   preventDefault only — jsPsych's own listener still receives the event. */
+window.addEventListener('keydown', function (e) {
+    if ([' ', 'Spacebar', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(e.key) !== -1) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+
+            // resp keys
+            const KEY_LEFT  = 'arrowleft';
+            const KEY_RIGHT = 'arrowright';
+
+            // stimuli 
+            const DIGITS = [1, 2, 3, 4, 6, 7, 8, 9];
+            const TASKS  = ['parity', 'magnitude'];
+
+
+            function correctKey(digit, task) {
+                if (task === 'parity') {
+                    return (digit % 2 === 0) ? KEY_LEFT : KEY_RIGHT;   // even=left, odd=right
+                } else {
+                    return (digit < 5) ? KEY_LEFT : KEY_RIGHT;         // <5=left, >5=right
+                }
+            }
+
+            // building the trial list(s)
+            function buildTrialList(n) {
+                const list = [];
+                for (let i = 0; i < n; i++) {
+                    const digit = jsPsych.randomization.sampleWithReplacement(DIGITS, 1)[0];
+                    const task  = jsPsych.randomization.sampleWithReplacement(TASKS, 1)[0];
+                    list.push({ digit: digit, ts_task: task, block_type: 'mixed' });
+                }
+                return list;
+            }
+
+            // single task block
+            function buildSingleTaskList(n, task) {
+                const list = [];
+                for (let i = 0; i < n; i++) {
+                    const digit = jsPsych.randomization.sampleWithReplacement(DIGITS, 1)[0];
+                    list.push({ digit: digit, ts_task: task, block_type: 'pure' });
+                }
+                return list;
+            }
+
+            // innitialze the experiment
+            const jsPsych = initJsPsych();
+
+            const timeline = [];
+
+            // state tracker for task-switch detection (mutable, lives outside the timeline)
+            let previousTask = null;
+
+            /* jsPsych v8 evaluates `data` BEFORE on_start runs, so writing to
+               trial.data inside on_start is silently discarded. These module-level
+               vars are the snapshot bridge from on_start into on_finish. */
+            let pendingBlockType = 'mixed';
+            let pendingTransition = 'first';
+
+
+            // instructions
+            var instructions = {
+                type : jsPsychHtmlKeyboardResponse,
+                choices : [' '],
+                stimulus : `
+                    <div class="instructions-text"><p>
+                        <span class="hu">A képernyő közepén egy számjegy jelenik meg színes háttéren. A háttér színe jelzi a feladatot.
+                            <strong>Sárga</strong> háttér: paritás — páros szám → <strong>bal (←)</strong>, páratlan → <strong>jobb (→)</strong>.
+                            <strong>Kék</strong> háttér: nagyság — 5-nél kisebb → <strong>bal (←)</strong>, nagyobb → <strong>jobb (→)</strong>.
+                            A SPACE gombbal kezdhet.</span>
+                        <span class="en">A digit appears in the middle of the screen on a coloured background. The colour signals the task.
+                            <strong>Yellow</strong> background: parity — even → <strong>left (←)</strong>, odd → <strong>right (→)</strong>.
+                            <strong>Blue</strong> background: magnitude — less than 5 → <strong>left (←)</strong>, greater → <strong>right (→)</strong>.
+                            Press SPACE to start.</span>
+                    </p></div>
+                `,
+                post_trial_gap : 2000
+            };
+            timeline.push(instructions);
+            //
+
+            // trial component(s)
+            const fixation = {
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: '<div class="fixation">+</div>',
+                choices: "NO_KEYS",
+                trial_duration: function(){
+                    return jsPsych.randomization.sampleWithoutReplacement([500, 750, 1000], 1)[0];
+                },
+                data: {task:'fixation'}
+            };
+
+            // test cmoponent
+            const test = {
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: function () {
+                    const digit = jsPsych.evaluateTimelineVariable('digit');
+                    const task  = jsPsych.evaluateTimelineVariable('ts_task');
+                    return `<div class="ts-frame ${task}"><span class="ts-digit">${digit}</span></div>`;
+                },
+                choices: [KEY_LEFT, KEY_RIGHT],
+                trial_duration: 2500,
+                data: {
+                    task:       'response',
+                    digit:      jsPsych.timelineVariable('digit'),
+                    ts_task:    jsPsych.timelineVariable('ts_task')
+                },
+                //
+                on_start: function () {
+                    const blockType = jsPsych.evaluateTimelineVariable('block_type') || 'mixed';
+                    const thisTask  = jsPsych.evaluateTimelineVariable('ts_task');
+                    pendingBlockType = blockType;
+                    if (blockType === 'pure') {
+                        pendingTransition = 'pure';
+                    } else {
+                        pendingTransition =
+                              (previousTask === null)   ? 'first'
+                            : (thisTask === previousTask) ? 'repeat'
+                            :                               'switch';
+                    }
+                },
+                on_finish: function (data) {
+                    // carry the snapshot into the saved data
+                    data.block_type = pendingBlockType;
+                    data.transition = pendingTransition;
+
+                    const expected = correctKey(data.digit, data.ts_task);
+                    data.correct = jsPsych.pluginAPI.compareKeys(data.response, expected);
+                    // only track previous task across mixed trials
+                    previousTask = (data.block_type === 'mixed') ? data.ts_task : null;
+                }
+            };            
+
+            // making blocks
+            function makeBlock(n) {
+                return {
+                    timeline: [fixation, test],
+                    timeline_variables: buildTrialList(n)
+                };
+            }
+
+            function makePureBlock(n, task) {
+                return {
+                    timeline: [fixation, test],
+                    timeline_variables: buildSingleTaskList(n, task)
+                };
+            }
+
+            function pureBlockInst(task) {
+                const en = (document.documentElement.lang === 'en');
+                const isParity = (task === 'parity');
+                return {
+                    type: jsPsychHtmlKeyboardResponse,
+                    choices: [' '],
+                    stimulus: `
+                    <div class="instructions-text"><p>
+                        <span class="hu">Most csak <strong>egyféle</strong> feladat következik:
+                        ${isParity ? 'paritás (páros ← / páratlan →).' : 'nagyság (kisebb ← / nagyobb → mint 5).'}
+                        A SPACE gombbal kezdhet.</span>
+                        <span class="en">Now only <strong>one</strong> task:
+                        ${isParity ? 'parity (even ← / odd →).' : 'magnitude (less ← / greater → than 5).'}
+                        Press SPACE to start.</span>
+                    </p></div>`,
+                    post_trial_gap: 800
+                };
+            }
+
+            function betweenBlockInst(blockNum) {
+                return {
+                    type: jsPsychHtmlKeyboardResponse,
+                    choices: [' '],
+                    stimulus: `
+                    <div class="instructions-text"><p>
+                        <span class="hu">A(z) ${blockNum}. blokk vége. Nyomja meg a SPACE gombot a folytatáshoz.</span>
+                        <span class="en">End of block ${blockNum}. Press SPACE to continue.</span>
+                    </p></div>`,
+                    post_trial_gap: 800
+                };
+            }
+
+            // Mixed block = 12 trials, ~2.45s/trial => ~29s per block
+            // blocks (~10 trials each) add ~1 min. 
+            // Short ~3min, Medium ~5min, Long ~10min
+            const REPS = 12;                                        // trials per mixed block
+            const PURE_REPS = 10;                                   // trials per pure baseline block
+            const LENGTHS = { short: 5, medium: 9, long: 19 };      // mixed blocks per duration
+
+            ceChooseDuration().then(function (choice) {
+                const N_BLOCKS = LENGTHS[choice];
+
+                // pure single-task baseline blocks (order randomised)
+                const pureOrder = jsPsych.randomization.shuffle(['parity', 'magnitude']);
+                pureOrder.forEach(function (task) {
+                    timeline.push(pureBlockInst(task));
+                    timeline.push(makePureBlock(PURE_REPS, task));
+                });
+
+                // mixed task-switching blocks
+                timeline.push({
+                    type: jsPsychHtmlKeyboardResponse,
+                    choices: [' '],
+                    stimulus: `
+                    <div class="instructions-text"><p>
+                        <span class="hu">Most a két feladat <strong>váltakozni</strong> fog a háttérszín szerint.
+                        Figyelje a színt minden próbánál! A SPACE gombbal kezdhet.</span>
+                        <span class="en">Now the two tasks will <strong>alternate</strong> by background colour.
+                        Watch the colour on every trial! Press SPACE to start.</span>
+                    </p></div>`,
+                    post_trial_gap: 800
+                });
+                for (let b = 1; b <= N_BLOCKS; b++) {
+                    timeline.push(makeBlock(REPS));
+                    if (b < N_BLOCKS) timeline.push(betweenBlockInst(b));
+                }
+
+                // "debriefing" == charted result screening
+                timeline.push(ceResultsScreen(jsPsych, {
+                    compute: function (jp) {
+                        const en = (document.documentElement.lang === 'en');
+                        const all = jp.data.get().filter({ task: 'response' });
+                        const correct = all.filter({ correct: true });
+                        const errorRate = all.count() > 0
+                            ? Math.round(((all.count() - correct.count()) / all.count()) * 100) : 0;
+
+                        const rtSwitch   = Math.round(correct.filter({ transition: 'switch' }).select('rt').mean()) || 0;
+                        const rtRepeat   = Math.round(correct.filter({ transition: 'repeat' }).select('rt').mean()) || 0;
+                        const rtPure     = Math.round(correct.filter({ transition: 'pure'   }).select('rt').mean()) || 0;
+
+                        const switchCost = (rtSwitch && rtRepeat) ? (rtSwitch - rtRepeat) : 0;
+                        const mixingCost = (rtRepeat && rtPure)   ? (rtRepeat - rtPure)   : 0;
+
+                        return {
+                            rows: [
+                                { label_hu: 'Hibaarány', label_en: 'Error rate', value: errorRate + '%' },
+                                { label_hu: 'Reakcióidő — tiszta blokk', label_en: 'RT — pure block', value: rtPure + ' ms' },
+                                { label_hu: 'Reakcióidő — ismétlés (kevert)', label_en: 'RT — repeat (mixed)', value: rtRepeat + ' ms' },
+                                { label_hu: 'Reakcióidő — váltás (kevert)', label_en: 'RT — switch (mixed)', value: rtSwitch + ' ms' },
+                                { label_hu: 'Váltási költség', label_en: 'Switch cost', value: switchCost + ' ms' },
+                                { label_hu: 'Keverési költség', label_en: 'Mixing cost', value: mixingCost + ' ms' }
+                            ],
+                            chart: {
+                                kind: 'bar',
+                                title: en ? 'Switch cost and mixing cost' : 'Váltási és keverési költség',
+                                bars: [
+                                    { label: en ? 'Switch cost' : 'Váltási',  value: switchCost, unit: 'ms' },
+                                    { label: en ? 'Mixing cost' : 'Keverési', value: mixingCost, unit: 'ms' }
+                                ]
+                            },
+                            note_hu: 'Váltási költség = váltás − ismétlés (kevert blokkon belül). Keverési költség = ismétlés (kevert) − tiszta blokk.',
+                            note_en: 'Switch cost = switch − repeat (within mixed blocks). Mixing cost = repeat (mixed) − pure block.'
+                        };
+                    }
+                }));
+
+                jsPsych.run(timeline);
+            });
+            
+        </script>
+    </body>
+</html>
