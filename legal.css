@@ -1,0 +1,114 @@
+/* legal.css — shared styles for the informational pages
+   (impresszum, gdpr, cookies, kapcsolat) */
+
+.legal-page {
+  max-width: var(--reading-w);
+  margin: 0 auto;
+  padding: 4rem 2rem 3rem;
+}
+.legal-page h1 {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(2.25rem, 5vw, 3rem);
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  margin: 0 0 0.5rem;
+}
+.legal-page .lede {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--ink-soft);
+  margin: 0 0 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 0.5px solid var(--rule);
+}
+.legal-page h2 {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.35rem;
+  margin: 2.5rem 0 0.75rem;
+}
+.legal-page p,
+.legal-page li {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+.legal-page ul.bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+.legal-page ul.bullets li {
+  position: relative;
+  padding-left: 1.4rem;
+  margin-bottom: 0.4rem;
+}
+.legal-page ul.bullets li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+
+/* Definition-style rows for the impresszum and the cookie table */
+.legal-page .rows {
+  margin: 1rem 0 0;
+  border-top: 0.5px solid var(--rule);
+}
+.legal-page .rows > div {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.75rem 0;
+  border-bottom: 0.5px solid var(--rule);
+  flex-wrap: wrap;
+}
+.legal-page .rows dt,
+.legal-page .rows .label {
+  flex: 0 0 11rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.legal-page .rows dd,
+.legal-page .rows .value {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-size: 1.0625rem;
+}
+.legal-page code {
+  font-family: "DejaVu Sans Mono", Menlo, monospace;
+  font-size: 0.95em;
+  background: var(--accent-soft);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+
+/* Unfilled placeholders — deliberately loud so none ships by accident. */
+.todo {
+  background: rgba(192, 57, 43, 0.14);
+  border-bottom: 2px solid #C0392B;
+  padding: 0 0.25em;
+  font-style: normal;
+}
+
+.legal-page .note {
+  background: var(--paper-soft);
+  border-left: 2px solid var(--accent);
+  padding: 1.25rem 1.5rem;
+  margin: 2rem 0;
+}
+.legal-page .note p { font-size: 1rem; margin: 0 0 0.6rem; }
+.legal-page .note p:last-child { margin-bottom: 0; }
+
+.legal-page .updated {
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+  font-style: italic;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 0.5px solid var(--rule);
+}
