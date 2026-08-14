@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visszacsatolási Paradigma (REFBACK)</title>
+
+    <script src="https://unpkg.com/jspsych@8.2.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+    <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" />
+    <script src="ce-duration.js"></script>
+    <script src="ce-chart.js"></script>
+
+    <link rel="stylesheet" href="REFBACK.css" />
+</head>
+<body>
+<script>
+/* ------------------------------------------------------------------
+   Reference-back (Rac-Lubashevsky & Kessler, 2016)
+   Section I  — identity:   X -> A (left)   O -> L (right)
+   Section II — reference:  match -> L (right)   mismatch -> A (left)
+                red frame updates the held reference, blue does not.
+   ------------------------------------------------------------------ */
+
+/* restore saved language (always ends with a concrete value) */
+try {
+    const savedLang = localStorage.getItem('ce.lang');
+    document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
+} catch (e) { document.documentElement.lang = 'hu'; }
+
+/* ---- cog_site build 2026-08-14-c — REFBACK ---- */
+console.log('[cog_site] REFBACK build 2026-08-14-c');
+
+/* Stop SPACE and the arrow keys from scrolling the page mid-trial.
+   preventDefault only — jsPsych's own listener still receives the event. */
+window.addEventListener('keydown', function (e) {
+    if ([' ', 'Spacebar', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(e.key) !== -1) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+
+/* response keys */
+const KEY_LEFT  = 'a';
+const KEY_RIGHT = 'l';
+
+/* stimulus pool */
+const LETTERS = ['X', 'O'];
+const FRAMES  = ['red', 'blue'];
+
+const jsPsych = initJsPsych();
+
+const timeline = [];
+
+/* ---- reference state bridge -------------------------------------
+   jsPsych v8 evaluates `data` BEFORE on_start runs, so anything written
+   to trial.data inside on_start is discarded. These module-level vars
+   are the snapshot that carries state from on_start into on_finish.  */
+let currentReference = null;
+let pendingReference = null;
+let pendingIsMatch   = null;
+
+/* ---- shared components ------------------------------------------ */
+const fixation = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '<div class="fixation">+</div>',
+    choices: "NO_KEYS",
+    trial_duration: function () {
+        return jsPsych.randomization.sampleWithoutReplacement([500, 750, 1000], 1)[0];
+    },
+    data: { task: 'fixation' }
+};
+
+/* FIXED: renders the coloured frame; `frame` is actually used. */
+function frameStim(letter, frame) {
+    return `<div class="refback-frame ${frame}">
+                <span class="refback-letter">${letter}</span>
+            </div>`;
+}
+
+/* ---- Section I: identity ----------------------------------------- */
+function buildIdentityList(n) {
+    const list = [];
+    for (let i = 0; i < n; i++) {
+        list.push({
+            letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[0],
+            frame:  jsPsych.randomization.sampleWithReplacement(FRAMES, 1)[0]
+        });
+    }
+    return list;
+}
+
+const identityTrial = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: function () {
+        return frameStim(
+            jsPsych.evaluateTimelineVariable('letter'),
+            jsPsych.evaluateTimelineVariable('frame')
+        );
+    },
+    choices: [KEY_LEFT, KEY_RIGHT],
+    trial_duration: 2500,
+    data: {
+        task:   'identity',
+        letter: jsPsych.timelineVariable('letter'),
+        frame:  jsPsych.timelineVariable('frame')
+    },
+    on_finish: function (data) {
+        const expected = (data.letter === 'X') ? KEY_LEFT : KEY_RIGHT;
+        data.correct = jsPsych.pluginAPI.compareKeys(data.response, expected);
+    }
+};
+
+function identityBlock(n) {
+    return { timeline: [fixation, identityTrial], timeline_variables: buildIdentityList(n) };
+}
+
+/* ---- Section II: reference-back ---------------------------------- */
+function buildRefbackList(n) {
+    const list = [];
+    /* trial 0 is the designated reference -> always red, never scored */
+    list.push({
+        letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[0],
+        frame: 'red',
+        is_designator: true
+    });
+    for (let i = 1; i < n; i++) {
+        list.push({
+            letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[0],
+            frame:  jsPsych.randomization.sampleWithReplacement(FRAMES, 1)[0],
+            is_designator: false
+        });
+    }
+    return list;
+}
+
+const refbackTrial = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: function () {
+        return frameStim(
+            jsPsych.evaluateTimelineVariable('letter'),
+            jsPsych.evaluateTimelineVariable('frame')
+        );
+    },
+    choices: [KEY_LEFT, KEY_RIGHT],
+    trial_duration: 2500,
+    data: {
+        task:          'refback',
+        letter:        jsPsych.timelineVariable('letter'),
+        frame:         jsPsych.timelineVariable('frame'),
+        is_designator: jsPsych.timelineVariable('is_designator')
+    },
+    on_start: function () {
+        pendingReference = currentReference;
+        const thisLetter = jsPsych.evaluateTimelineVariable('letter');
+        pendingIsMatch = (currentReference !== null) ? (thisLetter === currentReference) : null;
+    },
+    on_finish: function (data) {
+        data.reference_before = pendingReference;
+        data.is_match         = pendingIsMatch;
+
+        if (data.is_designator || pendingReference === null) {
+            data.correct = null;                    // unscored reference trial
+        } else {
+            /* match -> L (right), mismatch -> A (left) — matches the instructions */
+            const expected = data.is_match ? KEY_RIGHT : KEY_LEFT;
+            data.correct = jsPsych.pluginAPI.compareKeys(data.response, expected);
+        }
+        /* red frame updates the held reference, blue does not */
+        if (data.frame === 'red') currentReference = data.letter;
+    }
+};
+
+function refbackBlock(n) {
+    return { timeline: [fixation, refbackTrial], timeline_variables: buildRefbackList(n) };
+}
+
+/* ---- instruction screens ----------------------------------------- */
+function breakScreen(num) {
+    return {
+        type: jsPsychHtmlKeyboardResponse,
+        choices: [' '],
+        stimulus: `<div class="instructions-text"><p>
+            <span class="hu">A(z) ${num}. blokk vége. Nyomja meg a SPACE gombot a folytatáshoz.</span>
+            <span class="en">End of block ${num}. Press SPACE to continue.</span>
+        </p></div>`,
+        post_trial_gap: 600
+    };
+}
+
+/* FIXED: name is `imgInstr` (matches the call sites) and the Hungarian
+   parameter is spelled correctly. */
+function imgInstr(imgBase, htmlHu, htmlEn) {
+    return {
+        type: jsPsychHtmlKeyboardResponse,
+        choices: [' '],
+        stimulus: function () {
+            const en  = (document.documentElement.lang === 'en');
+            const src = imgBase + (en ? '_en.png' : '_hu.png');
+            return `<div class="instructions-text">
+                <img src="${src}" alt=""
+                     style="max-width:100%;height:auto;margin:0 auto 1.2rem;display:block;"
+                     onerror="this.style.display='none';">
+                <p>
+                    <span class="hu">${htmlHu}</span>
+                    <span class="en">${htmlEn}</span>
+                </p>
+                <p style="font-size:14px;opacity:0.6;">
+                    <span class="hu">SPACE = tovább</span>
+                    <span class="en">SPACE = continue</span>
+                </p>
+            </div>`;
+        },
+        post_trial_gap: 600
+    };
+}
+
+const introIdentity = imgInstr(
+    'images/refback_section1',
+    `Ebben a feladatban betűket lát egy színes keretben. Csak a betűre figyeljen:
+     ha <strong>X</strong>-et lát, nyomja meg az <strong>A</strong> (bal) gombot;
+     ha <strong>O</strong>-t lát, nyomja meg az <strong>L</strong> (jobb) gombot, minél gyorsabban.
+     A keret színe most nem számít.`,
+    `In this task you will see letters inside a coloured frame. Respond to the letter only:
+     if you see <strong>X</strong>, press <strong>A</strong> (left);
+     if you see <strong>O</strong>, press <strong>L</strong> (right), as quickly as possible.
+     The frame colour does not matter here.`
+);
+
+const introRefback = imgInstr(
+    'images/refback_section2',
+    `Most a <strong>piros</strong> keretes betűk fontosak. Mindig a legutoljára látott
+     <strong>piros keretes</strong> betűhöz hasonlítsa az éppen látott betűt:
+     ha <strong>megegyezik</strong> vele, nyomja meg az <strong>L</strong> (jobb) gombot;
+     ha <strong>különbözik</strong>, az <strong>A</strong> (bal) gombot.
+     Az első piros betű csak a kiindulópont — arra bármelyik gombbal válaszolhat.`,
+    `Now the <strong>red</strong>-framed letters matter. Always compare the current letter to the
+     most recent <strong>red-framed</strong> letter: if it <strong>matches</strong>,
+     press <strong>L</strong> (right); if it <strong>differs</strong>, press <strong>A</strong> (left).
+     The first red letter is just the starting reference — you may respond with either key to it.`
+);
+
+/* ---- timeline ----------------------------------------------------
+   ~2.3 s per trial (fixation ~0.75 s + response ~1.5 s), two sections.
+   trials/section = target_seconds / (2 x 2.3)                        */
+const LENGTHS      = { short: 40, medium: 65, long: 130 };  // trials per section
+const BLOCK_LENGTH = 32;                                    // break every 32 trials
+
+function section(nTotal, builder, blockOffset) {
+    const nodes = [];
+    let done = 0, blockNum = blockOffset;
+    while (done < nTotal) {
+        const size = Math.min(BLOCK_LENGTH, nTotal - done);
+        nodes.push(builder(size));
+        done += size;
+        blockNum++;
+        if (done < nTotal) nodes.push(breakScreen(blockNum - 1));
+    }
+    return nodes;
+}
+
+ceChooseDuration().then(function (choice) {
+    const N = LENGTHS[choice] || LENGTHS.medium;
+
+    timeline.push(introIdentity);
+    section(N, identityBlock, 1).forEach(n => timeline.push(n));
+
+    timeline.push(introRefback);
+    /* reset the reference before Section II */
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        choices: "NO_KEYS",
+        trial_duration: 1,
+        stimulus: '',
+        on_start: function () { currentReference = null; }
+    });
+    section(N, refbackBlock, 1).forEach(n => timeline.push(n));
+
+    timeline.push(ceResultsScreen(jsPsych, {
+        compute: function (jp) {
+            const en = (document.documentElement.lang === 'en');
+
+            /* Section I — identity */
+            const id         = jp.data.get().filter({ task: 'identity' });
+            const idAnswered = id.filterCustom(function (t) { return t.rt !== null; });
+            const idCorrect  = id.filter({ correct: true });
+            const idWrong    = idAnswered.count() - idCorrect.count();
+
+            /* Section II — reference-back, excluding the unscored reference trials */
+            const rb         = jp.data.get().filter({ task: 'refback' });
+            const scored     = rb.filterCustom(function (t) { return t.correct !== null; });
+            const rbAnswered = scored.filterCustom(function (t) { return t.rt !== null; });
+            const rbCorrect  = scored.filter({ correct: true });
+            const rbWrong    = rbAnswered.count() - rbCorrect.count();
+
+            const missed = (id.count() - idAnswered.count()) + (scored.count() - rbAnswered.count());
+
+            const idRt       = Math.round(idCorrect.select('rt').mean()) || 0;
+            const rtMatch    = Math.round(rbCorrect.filter({ is_match: true  }).select('rt').mean()) || 0;
+            const rtMismatch = Math.round(rbCorrect.filter({ is_match: false }).select('rt').mean()) || 0;
+            const rbRt       = Math.round(rbCorrect.select('rt').mean()) || 0;
+
+            const rows = [
+                { label_hu: 'Helyes válaszok', label_en: 'Correct responses',
+                  value: (idCorrect.count() + rbCorrect.count()) },
+                { label_hu: 'Hibás válaszok', label_en: 'Incorrect responses',
+                  value: (idWrong + rbWrong) }
+            ];
+            if (missed > 0) {
+                rows.push({ label_hu: 'Nem válaszolt', label_en: 'No response', value: missed });
+            }
+            rows.push({ label_hu: 'I. szakasz — reakcióidő',  label_en: 'Section I — reaction time',  value: idRt + ' ms' });
+            rows.push({ label_hu: 'II. szakasz — reakcióidő', label_en: 'Section II — reaction time', value: rbRt + ' ms' });
+            rows.push({ label_hu: 'Reakcióidő — egyezés',     label_en: 'RT — match',                 value: rtMatch + ' ms' });
+            rows.push({ label_hu: 'Reakcióidő — eltérés',     label_en: 'RT — mismatch',              value: rtMismatch + ' ms' });
+
+            return {
+                rows: rows,
+                chart: {
+                    kind: 'bar',
+                    title: en ? 'Reaction time by trial type' : 'Reakcióidő próbatípusonként',
+                    bars: [
+                        { label: en ? 'Section I' : 'I. szakasz', value: idRt,       unit: 'ms' },
+                        { label: en ? 'Match'     : 'Egyezés',    value: rtMatch,    unit: 'ms' },
+                        { label: en ? 'Mismatch'  : 'Eltérés',    value: rtMismatch, unit: 'ms' }
+                    ]
+                }
+            };
+        }
+    }));
+
+    jsPsych.run(timeline);
+});
+</script>
+</body>
+</html>

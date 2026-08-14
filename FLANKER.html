@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title> Flanker Paradigma (FLK) </title>
+        <script src="https://unpkg.com/jspsych@8.2.3"></script>
+        <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+        <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" />
+        <script src="ce-duration.js"></script>
+        <script src="ce-chart.js"></script>
+
+        <style>
+
+            /* jsPsych v8: .jspsych-content collapses to zero WIDTH inside the
+               flex wrapper. Give it explicit width and centre it. */
+            html, body { min-height: 100vh; margin: 0; }
+            .jspsych-display-element { width: 100%; min-height: 100vh; }
+            .jspsych-content-wrapper { width: 100%; }
+            .jspsych-content { width: 100%; max-width: 900px; margin: auto; }
+
+            /* Bilingual: hide the inactive language */
+            [lang="hu"] .en { display: none; }
+            [lang="en"] .hu { display: none; }
+
+            /* Page theme matching the rest of the site */
+            body {
+            background: #FBF7EE;
+            color: #1F1B16;
+            font-family: "Public Sans", system-ui, sans-serif;
+            }
+            @media (prefers-color-scheme: dark) {
+            body { background: #181612; color: #E8E3D6; }
+            }
+
+            /* Stimulus rendering */
+            .flanker-row {
+            font-size: 64px;
+            letter-spacing: 0.25em;
+            line-height: 1;
+            font-family: "DejaVu Sans Mono", "Menlo", monospace;
+            }
+            .fixation {
+            font-size: 60px;
+            }
+            .instructions-text {
+            max-width: 580px;
+            margin: 0 auto;
+            line-height: 1.65;
+            font-size: 18px;
+            }
+            .instructions-text p { margin: 0 0 1.2rem; }
+            .instructions-text p:last-child { margin-bottom: 0; }
+
+            .debrief-table { margin: 1.5rem auto; border-collapse: collapse; font-size: 18px; }
+            .debrief-table td { padding: 6px 18px; border-bottom: 1px solid rgba(0,0,0,0.12); text-align: left; }
+            .debrief-table td:last-child { text-align: right; font-weight: 600; }
+        </style>
+    </head>
+    <body>
+        <script>
+            /* restore saved language */
+            try {
+                const savedLang = localStorage.getItem('ce.lang');
+                document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
+            } catch (e) { document.documentElement.lang = 'hu'; }
+
+/* ---- cog_site build 2026-08-14-c — FLANKER ---- */
+console.log('[cog_site] FLANKER build 2026-08-14-c');
+
+/* Stop SPACE and the arrow keys from scrolling the page mid-trial.
+   preventDefault only — jsPsych's own listener still receives the event. */
+window.addEventListener('keydown', function (e) {
+    if ([' ', 'Spacebar', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(e.key) !== -1) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+
+            /* response keys */
+            const KEY_LEFT  = 'a';   // middle arrow points left
+            const KEY_RIGHT = 'l';   // middle arrow points right
+
+            /* STIMULI */
+            /* HTML arrow rows — no image assets needed. The middle arrow is the target;
+            congruent = flankers match it, incongruent = flankers oppose it. */
+            const L = '&larr;', R = '&rarr;';
+            const row = (a, b, c, d, e) => `${a}&nbsp;${b}&nbsp;${c}&nbsp;${d}&nbsp;${e}`;
+
+            const stimuli = [
+                { stimulus: row(L,L,L,L,L), correct_response: KEY_LEFT,  condition: 'congruent',   direction: 'left'  },
+                { stimulus: row(R,R,R,R,R), correct_response: KEY_RIGHT, condition: 'congruent',   direction: 'right' },
+                { stimulus: row(R,R,L,R,R), correct_response: KEY_LEFT,  condition: 'incongruent', direction: 'left'  },
+                { stimulus: row(L,L,R,L,L), correct_response: KEY_RIGHT, condition: 'incongruent', direction: 'right' }
+            ];
+
+            /* INIT */
+            const jsPsych = initJsPsych();
+
+            const timeline = [];
+
+            /* INSTRUCTIONS */
+            timeline.push({
+                type: jsPsychHtmlKeyboardResponse,
+                choices: [' '],
+                stimulus: `
+                <div class="instructions-text">
+                    <p>
+                    <span class="hu">A feladat során nyilak jelennek meg a képernyő közepén.
+                        Döntse el, merre mutat a <strong>középső</strong> nyíl.
+                        Ha balra mutat, nyomja meg a bal (<strong>A</strong>) gombot; ha jobbra,
+                        a jobb (<strong>L</strong>) gombot. Válaszoljon minél gyorsabban és pontosabban!
+                        A SPACE gombbal kezdhet.</span>
+                    <span class="en">During the task, arrows appear in the middle of the screen.
+                        Decide which way the <strong>middle</strong> arrow points.
+                        If it points left, press the left (<strong>A</strong>) key; if right,
+                        the right (<strong>L</strong>) key. Respond as quickly and accurately as possible!
+                        Press SPACE to start.</span>
+                    </p>
+                </div>`,
+                post_trial_gap: 800
+            });
+
+            /* TRIAL COMPONENTS */
+            const fixation = {
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: '<div class="fixation">+</div>',
+                choices: "NO_KEYS",
+                trial_duration: function () {
+                    return jsPsych.randomization.sampleWithoutReplacement([250, 500, 750, 1000, 1250], 1)[0];
+                },
+                data: { task: 'fixation' }
+            };
+
+            const test = {
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: function () {
+                    return `<div class="flanker-row">${jsPsych.evaluateTimelineVariable('stimulus')}</div>`;
+                },
+                choices: [KEY_LEFT, KEY_RIGHT],
+                trial_duration: 2000,
+                data: {
+                    task:             'response',
+                    correct_response: jsPsych.timelineVariable('correct_response'),
+                    condition:        jsPsych.timelineVariable('condition'),
+                    direction:        jsPsych.timelineVariable('direction')
+                },
+                on_finish: function (data) {
+                    data.correct = jsPsych.pluginAPI.compareKeys(data.response, data.correct_response);
+                }
+            };
+
+
+        // making blocks
+        function makeBlock(repetitions) {
+            return {
+                timeline: [fixation, test],
+                timeline_variables: stimuli,
+                randomize_order: true,
+                repetitions: repetitions
+            };
+        }
+
+        function betweenBlockInst(blockNum) {
+            return {
+                type: jsPsychHtmlKeyboardResponse,
+                choices: [' '],
+                stimulus: `
+                <div class="instructions-text"><p>
+                    <span class="hu">A(z) ${blockNum}. blokk vége. Nyomja meg a SPACE gombot a folytatáshoz.</span>
+                    <span class="en">End of block ${blockNum}. Press SPACE to continue.</span>
+                </p></div>`,
+                post_trial_gap: 800
+            };
+        }
+
+        const REPS = 5; // 4 stimuli x 5 reps = 20 trials per block
+        
+        // Block time ~= 20 trials x ~2.45s = ~49s. 
+        // blocks = target_min*60 / 49.
+        // Short ~3min, Medium ~5min, Long ~10min.
+        const LENGTHS = { short: 4, medium: 6, long: 12 };   // blocks per duration
+
+        ceChooseDuration().then(function (choice) {
+            const N_BLOCKS = LENGTHS[choice];
+            for (let b = 1; b <= N_BLOCKS; b++) {
+                timeline.push(makeBlock(REPS));
+                if (b < N_BLOCKS) timeline.push(betweenBlockInst(b));
+            }
+
+            // "debriefing" == charted result screening
+            timeline.push(ceResultsScreen(jsPsych, {
+                compute: function (jp) {
+                    const en = (document.documentElement.lang === 'en');
+                    const trials   = jp.data.get().filter({ task: 'response' });
+                    const answered = trials.filterCustom(function (t) { return t.rt !== null; });
+                    const correct  = trials.filter({ correct: true });
+                    const wrong    = answered.count() - correct.count();
+                    const missed   = trials.count() - answered.count();
+
+                    const rtCong   = Math.round(correct.filter({ condition: 'congruent'   }).select('rt').mean()) || 0;
+                    const rtIncong = Math.round(correct.filter({ condition: 'incongruent' }).select('rt').mean()) || 0;
+
+                    const rows = [
+                        { label_hu: 'Helyes válaszok', label_en: 'Correct responses',   value: correct.count() },
+                        { label_hu: 'Hibás válaszok',  label_en: 'Incorrect responses', value: wrong }
+                    ];
+                    if (missed > 0) {
+                        rows.push({ label_hu: 'Nem válaszolt', label_en: 'No response', value: missed });
+                    }
+                    rows.push({ label_hu: 'Átlagos reakcióidő', label_en: 'Mean reaction time',
+                                value: (Math.round(correct.select('rt').mean()) || 0) + ' ms' });
+                    rows.push({ label_hu: 'Reakcióidő — kongruens',   label_en: 'RT — congruent',   value: rtCong + ' ms' });
+                    rows.push({ label_hu: 'Reakcióidő — inkongruens', label_en: 'RT — incongruent', value: rtIncong + ' ms' });
+
+                    return {
+                        rows: rows,
+                        chart: {
+                            kind: 'bar',
+                            title: en ? 'Reaction time by condition' : 'Reakcióidő feltételenként',
+                            bars: [
+                                { label: en ? 'Congruent'   : 'Kongruens',   value: rtCong,   unit: 'ms' },
+                                { label: en ? 'Incongruent' : 'Inkongruens', value: rtIncong, unit: 'ms' }
+                            ]
+                        }
+                    };
+                }
+            }));
+
+            jsPsych.run(timeline);
+        });
+    
+        </script>
+    </body>
+</html>
