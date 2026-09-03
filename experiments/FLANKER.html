@@ -34,23 +34,96 @@
             }
 
             /* Stimulus rendering */
+            /* Arrows are drawn as SVG rather than typed as ← →, so the head can
+               be made heavy relative to the shaft and the gap can be controlled
+               directly instead of through letter-spacing. */
             .flanker-row {
-            font-size: 64px;
-            letter-spacing: 0.25em;
-            line-height: 1;
-            font-family: "DejaVu Sans Mono", "Menlo", monospace;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 14px;                 /* was ~0.25em letter-spacing + &nbsp; */
             }
-            .fixation {
-            font-size: 60px;
+            .fl-arrow { display: block; width: 76px; height: 44px; }
+
+            .fixation { font-size: 60px; }
+
+            /* Instruction screens */
+            .instr {
+                max-width: 620px;
+                margin: 0 auto;
+                text-align: left;
+                line-height: 1.6;
+                font-size: 17px;
             }
-            .instructions-text {
-            max-width: 580px;
-            margin: 0 auto;
-            line-height: 1.65;
-            font-size: 18px;
+            .instr h2 {
+                font-family: "Cormorant Garamond", Georgia, serif;
+                font-size: 28px;
+                font-weight: 600;
+                margin: 0 0 1.1rem;
+                text-align: center;
             }
-            .instructions-text p { margin: 0 0 1.2rem; }
-            .instructions-text p:last-child { margin-bottom: 0; }
+            .instr p { margin: 0 0 1rem; }
+            .instr .hint { font-size: 14.5px; opacity: 0.68; }
+            .instr .go { text-align: center; font-size: 14.5px; opacity: 0.68; margin-bottom: 0; }
+
+            kbd {
+                font-family: inherit;
+                font-size: 0.92em;
+                font-weight: 600;
+                padding: 0.12em 0.5em;
+                border: 1px solid rgba(31,27,22,0.28);
+                border-bottom-width: 2px;
+                border-radius: 5px;
+                background: rgba(31,27,22,0.05);
+                white-space: nowrap;
+            }
+            @media (prefers-color-scheme: dark) {
+                kbd { border-color: rgba(232,227,214,0.30); background: rgba(232,227,214,0.07); }
+            }
+
+            /* Sample sequence + worked examples */
+            .seq {
+                display: flex;
+                align-items: flex-start;
+                justify-content: center;
+                gap: 10px;
+                margin: 0 auto 1.3rem;
+                flex-wrap: wrap;
+            }
+            .seq-step { width: 190px; }
+            .seq-box {
+                display: flex; align-items: center; justify-content: center;
+                width: 190px; height: 74px;
+                border: 1px solid rgba(31,27,22,0.18);
+                border-radius: 6px;
+                background: rgba(31,27,22,0.02);
+            }
+            @media (prefers-color-scheme: dark) {
+                .seq-box { border-color: rgba(232,227,214,0.20); background: rgba(232,227,214,0.03); }
+            }
+            .seq-cap { font-size: 12.5px; line-height: 1.35; opacity: 0.7; margin-top: 0.4rem; text-align: center; }
+            .seq-join { align-self: center; margin-top: 22px; opacity: 0.35; font-size: 16px; }
+            .seq-box .fixation { font-size: 30px; line-height: 1; }
+            .seq-box .flanker-row { gap: 7px; }
+            .seq-box .fl-arrow { width: 32px; height: 19px; }
+
+            .examples {
+                margin: 0 0 1.2rem;
+                border-top: 1px solid rgba(122,43,39,0.18);
+                border-bottom: 1px solid rgba(122,43,39,0.18);
+            }
+            .example {
+                display: flex; align-items: center; justify-content: space-between;
+                gap: 1.2rem; padding: 0.6rem 0.1rem;
+            }
+            .example + .example { border-top: 1px solid rgba(122,43,39,0.10); }
+            @media (prefers-color-scheme: dark) {
+                .examples { border-color: rgba(224,162,74,0.28); }
+                .example + .example { border-top-color: rgba(224,162,74,0.16); }
+            }
+            .example .flanker-row { gap: 8px; }
+            .example .fl-arrow { width: 38px; height: 22px; }
+            .example .note { font-size: 14px; opacity: 0.7; flex: 1; }
 
             .debrief-table { margin: 1.5rem auto; border-collapse: collapse; font-size: 18px; }
             .debrief-table td { padding: 6px 18px; border-bottom: 1px solid rgba(0,0,0,0.12); text-align: left; }
@@ -65,8 +138,10 @@
                 document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
             } catch (e) { document.documentElement.lang = 'hu'; }
 
-/* ---- cog_site build 2026-08-14-c — FLANKER ---- */
-console.log('[cog_site] FLANKER build 2026-08-14-c');
+/* cog_site build 2026-09-02-a — FLANKER  */
+/*
+console.log('[cog_site] FLANKER build 2026-09-02-a');
+*/
 
 /* Stop SPACE and the arrow keys from scrolling the page mid-trial.
    preventDefault only — jsPsych's own listener still receives the event. */
@@ -82,16 +157,36 @@ window.addEventListener('keydown', function (e) {
             const KEY_RIGHT = 'l';   // middle arrow points right
 
             /* STIMULI */
-            /* HTML arrow rows — no image assets needed. The middle arrow is the target;
-            congruent = flankers match it, incongruent = flankers oppose it. */
-            const L = '&larr;', R = '&rarr;';
-            const row = (a, b, c, d, e) => `${a}&nbsp;${b}&nbsp;${c}&nbsp;${d}&nbsp;${e}`;
+            /* Arrows are SVG, no image assets needed. The viewBox is 100x60:
+               shaft runs x=10..62 at 10 units thick, head is 38 long and 46 wide,
+               so the head reads clearly at small sizes. */
+            function arrowSVG(direction) {
+                const body =
+                    '<line x1="10" y1="30" x2="62" y2="30" stroke="currentColor" '
+                  + 'stroke-width="11" stroke-linecap="round"/>'
+                  + '<path d="M 94 30 L 56 7 L 56 53 Z" fill="currentColor"/>';
+                const g = (direction === 'left')
+                    ? '<g transform="translate(100,0) scale(-1,1)">'
+                    : '<g>';
+                return '<svg class="fl-arrow" viewBox="0 0 100 60" aria-hidden="true">'
+                     + g + body + '</g></svg>';
+            }
+
+            /* A five-arrow row. The middle arrow is the target;
+               congruent = flankers match it, incongruent = flankers oppose it. */
+            function flankerRow(direction, condition) {
+                const flank = (condition === 'congruent')
+                    ? direction
+                    : (direction === 'left' ? 'right' : 'left');
+                const f = arrowSVG(flank), c = arrowSVG(direction);
+                return `<div class="flanker-row">${f}${f}${c}${f}${f}</div>`;
+            }
 
             const stimuli = [
-                { stimulus: row(L,L,L,L,L), correct_response: KEY_LEFT,  condition: 'congruent',   direction: 'left'  },
-                { stimulus: row(R,R,R,R,R), correct_response: KEY_RIGHT, condition: 'congruent',   direction: 'right' },
-                { stimulus: row(R,R,L,R,R), correct_response: KEY_LEFT,  condition: 'incongruent', direction: 'left'  },
-                { stimulus: row(L,L,R,L,L), correct_response: KEY_RIGHT, condition: 'incongruent', direction: 'right' }
+                { correct_response: KEY_LEFT,  condition: 'congruent',   direction: 'left'  },
+                { correct_response: KEY_RIGHT, condition: 'congruent',   direction: 'right' },
+                { correct_response: KEY_LEFT,  condition: 'incongruent', direction: 'left'  },
+                { correct_response: KEY_RIGHT, condition: 'incongruent', direction: 'right' }
             ];
 
             /* INIT */
@@ -100,22 +195,56 @@ window.addEventListener('keydown', function (e) {
             const timeline = [];
 
             /* INSTRUCTIONS */
+            const sampleSequence = `
+            <div class="seq">
+                <div class="seq-step">
+                    <div class="seq-box"><div class="fixation">+</div></div>
+                    <div class="seq-cap"><span class="hu">Kereszt</span><span class="en">Fixation cross</span></div>
+                </div>
+                <div class="seq-join">&rarr;</div>
+                <div class="seq-step">
+                    <div class="seq-box">${flankerRow('left', 'incongruent')}</div>
+                    <div class="seq-cap"><span class="hu">Nyilak — válaszoljon</span><span class="en">Arrows — respond</span></div>
+                </div>
+            </div>`;
+
+            const examples = `
+            <div class="examples">
+                <div class="example">
+                    ${flankerRow('left', 'congruent')}
+                    <span class="note"><span class="hu">a középső balra mutat</span><span class="en">middle points left</span></span>
+                    <kbd>A</kbd>
+                </div>
+                <div class="example">
+                    ${flankerRow('right', 'incongruent')}
+                    <span class="note"><span class="hu">a középső jobbra mutat</span><span class="en">middle points right</span></span>
+                    <kbd>L</kbd>
+                </div>
+            </div>`;
+
             timeline.push({
                 type: jsPsychHtmlKeyboardResponse,
                 choices: [' '],
                 stimulus: `
-                <div class="instructions-text">
+                <div class="instr">
+                    <h2><span class="hu">Flanker feladat</span><span class="en">Flanker task</span></h2>
+                    ${sampleSequence}
                     <p>
-                    <span class="hu">A feladat során nyilak jelennek meg a képernyő közepén.
-                        Döntse el, merre mutat a <strong>középső</strong> nyíl.
-                        Ha balra mutat, nyomja meg a bal (<strong>A</strong>) gombot; ha jobbra,
-                        a jobb (<strong>L</strong>) gombot. Válaszoljon minél gyorsabban és pontosabban!
-                        A SPACE gombbal kezdhet.</span>
-                    <span class="en">During the task, arrows appear in the middle of the screen.
-                        Decide which way the <strong>middle</strong> arrow points.
-                        If it points left, press the left (<strong>A</strong>) key; if right,
-                        the right (<strong>L</strong>) key. Respond as quickly and accurately as possible!
-                        Press SPACE to start.</span>
+                        <span class="hu">Öt nyíl jelenik meg a képernyő közepén. Csak a <strong>középső</strong>
+                            nyíl számít — döntse el, merre mutat.</span>
+                        <span class="en">Five arrows appear in the middle of the screen. Only the <strong>middle</strong>
+                            arrow counts — decide which way it points.</span>
+                    </p>
+                    ${examples}
+                    <p class="hint">
+                        <span class="hu">A négy szélső nyíl néha az ellenkező irányba mutat. Ne hagyja magát megzavarni.
+                            Válaszoljon minél gyorsabban és pontosabban — a válasz után rögtön jön a következő próba.</span>
+                        <span class="en">The four outer arrows sometimes point the other way. Don't let them distract you.
+                            Respond as quickly and accurately as you can — the next trial starts right after your answer.</span>
+                    </p>
+                    <p class="go">
+                        <span class="hu"><kbd>SPACE</kbd> — indítás</span>
+                        <span class="en"><kbd>SPACE</kbd> — start</span>
                     </p>
                 </div>`,
                 post_trial_gap: 800
@@ -135,10 +264,18 @@ window.addEventListener('keydown', function (e) {
             const test = {
                 type: jsPsychHtmlKeyboardResponse,
                 stimulus: function () {
-                    return `<div class="flanker-row">${jsPsych.evaluateTimelineVariable('stimulus')}</div>`;
+                    return flankerRow(
+                        jsPsych.evaluateTimelineVariable('direction'),
+                        jsPsych.evaluateTimelineVariable('condition')
+                    );
                 },
                 choices: [KEY_LEFT, KEY_RIGHT],
                 trial_duration: 2000,
+                /* Explicit: the keypress clears the screen immediately instead of
+                   holding the arrows for the full 2 s. post_trial_gap gives a short
+                   blank so consecutive trials don't blur into each other. */
+                response_ends_trial: true,
+                post_trial_gap: 250,
                 data: {
                     task:             'response',
                     correct_response: jsPsych.timelineVariable('correct_response'),
@@ -166,20 +303,28 @@ window.addEventListener('keydown', function (e) {
                 type: jsPsychHtmlKeyboardResponse,
                 choices: [' '],
                 stimulus: `
-                <div class="instructions-text"><p>
-                    <span class="hu">A(z) ${blockNum}. blokk vége. Nyomja meg a SPACE gombot a folytatáshoz.</span>
-                    <span class="en">End of block ${blockNum}. Press SPACE to continue.</span>
-                </p></div>`,
+                <div class="instr">
+                    <p>
+                        <span class="hu">A(z) ${blockNum}. blokk vége. Pihenjen, ameddig szeretne.</span>
+                        <span class="en">End of block ${blockNum}. Take a break for as long as you like.</span>
+                    </p>
+                    ${examples}
+                    <p class="go">
+                        <span class="hu"><kbd>SPACE</kbd> — folytatás</span>
+                        <span class="en"><kbd>SPACE</kbd> — continue</span>
+                    </p>
+                </div>`,
                 post_trial_gap: 800
             };
         }
 
         const REPS = 5; // 4 stimuli x 5 reps = 20 trials per block
-        
-        // Block time ~= 20 trials x ~2.45s = ~49s. 
-        // blocks = target_min*60 / 49.
+
+        // With response_ends_trial a trial is ~1.5 s (fixation ~0.75 s +
+        // RT ~0.5 s + 0.25 s gap), not ~2.45 s, so a block is ~30 s not ~49 s.
+        // Block counts re-scaled so the durations still mean what they say:
         // Short ~3min, Medium ~5min, Long ~10min.
-        const LENGTHS = { short: 4, medium: 6, long: 12 };   // blocks per duration
+        const LENGTHS = { short: 6, medium: 10, long: 20 };   // blocks per duration
 
         ceChooseDuration().then(function (choice) {
             const N_BLOCKS = LENGTHS[choice];
@@ -229,7 +374,7 @@ window.addEventListener('keydown', function (e) {
 
             jsPsych.run(timeline);
         });
-    
+
         </script>
     </body>
 </html>
