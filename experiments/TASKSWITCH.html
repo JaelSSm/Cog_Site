@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
         <title> Task Switching Paradigma (TS) </title>
-        
+
         <script src="https://unpkg.com/jspsych@8.2.3"></script>
         <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
         <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" />
@@ -58,14 +58,67 @@
                 line-height: 1;
             }
 
-            .instructions-text {
-                max-width: 600px;
+            /* Instruction screens */
+            .instr {
+                max-width: 620px;
                 margin: 0 auto;
-                line-height: 1.65;
-                font-size: 18px;
+                text-align: left;
+                line-height: 1.6;
+                font-size: 17px;
             }
-            .instructions-text p { margin: 0 0 1.2rem; }
-            .instructions-text p:last-child { margin-bottom: 0; }
+            .instr h2 {
+                font-family: "Cormorant Garamond", Georgia, serif;
+                font-size: 28px;
+                font-weight: 600;
+                margin: 0 0 1.1rem;
+                text-align: center;
+            }
+            .instr p { margin: 0 0 1rem; }
+            .instr .lead { margin-bottom: 1.4rem; }
+            .instr .go { text-align: center; font-size: 14.5px; opacity: 0.68; margin: 1.4rem 0 0; }
+
+            kbd {
+                font-family: inherit;
+                font-size: 0.92em;
+                font-weight: 600;
+                padding: 0.12em 0.5em;
+                border: 1px solid rgba(31,27,22,0.28);
+                border-bottom-width: 2px;
+                border-radius: 5px;
+                background: rgba(31,27,22,0.05);
+                white-space: nowrap;
+            }
+            @media (prefers-color-scheme: dark) {
+                kbd { border-color: rgba(232,227,214,0.30); background: rgba(232,227,214,0.07); }
+            }
+
+            /* One task rule: colour name, the rule, and two worked examples */
+            .rule { margin: 0 0 1.4rem; }
+            .rule p { margin: 0 0 0.6rem; }
+            .ex-label { font-size: 14.5px; opacity: 0.7; margin: 0 0 0.35rem; }
+            .ex-line {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                margin: 0 0 0.3rem;
+                font-size: 16px;
+            }
+            /* The example digit carries its own task colour, so the mapping from
+               colour to rule is visible rather than only stated. */
+            .ts-chip {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 30px; height: 30px;
+                border-radius: 5px;
+                flex: none;
+                font-family: "DejaVu Sans Mono", "Menlo", monospace;
+                font-size: 18px;
+                font-weight: 600;
+                color: #1F1B16;
+            }
+            .ts-chip.parity    { background: #F4D03F; }
+            .ts-chip.magnitude { background: #5DADE2; }
 
             .debrief-table { margin: 1.5rem auto; border-collapse: collapse; font-size: 18px; }
             .debrief-table td { padding: 6px 18px; border-bottom: 1px solid rgba(0,0,0,0.12); text-align: left; }
@@ -81,8 +134,10 @@
                 document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
             } catch (e) { document.documentElement.lang = 'hu'; }
 
-/* ---- cog_site build 2026-08-14-c — TASKSWITCH ---- */
-console.log('[cog_site] TASKSWITCH build 2026-08-14-c');
+/* cog_site build 2026-09-02-a — TASKSWITCH */
+/*
+console.log('[cog_site] TASKSWITCH build 2026-09-02-a');
+*/
 
 /* Stop SPACE and the arrow keys from scrolling the page mid-trial.
    preventDefault only — jsPsych's own listener still receives the event. */
@@ -97,7 +152,7 @@ window.addEventListener('keydown', function (e) {
             const KEY_LEFT  = 'arrowleft';
             const KEY_RIGHT = 'arrowright';
 
-            // stimuli 
+            // stimuli
             const DIGITS = [1, 2, 3, 4, 6, 7, 8, 9];
             const TASKS  = ['parity', 'magnitude'];
 
@@ -146,21 +201,85 @@ window.addEventListener('keydown', function (e) {
             let pendingTransition = 'first';
 
 
+            /* instruction building blocks
+               The two rules are written once and reused on every screen that
+               needs them: opening instructions, the mixed-block intro, and every
+               between-block break. */
+
+            const RULE_PARITY = `
+            <div class="rule">
+                <p>
+                    <span class="hu"><strong>Sárga</strong> háttér: paritás &ndash; <strong>páros</strong> szám esetén a
+                        <strong>bal</strong> (&larr;), <strong>páratlan</strong> szám esetén a <strong>jobb</strong> (&rarr;)
+                        nyilat nyomja le minél gyorsabban!</span>
+                    <span class="en"><strong>Yellow</strong> background: parity &ndash; for an <strong>even</strong> number press
+                        <strong>left</strong> (&larr;), for an <strong>odd</strong> number press <strong>right</strong> (&rarr;),
+                        as quickly as you can!</span>
+                </p>
+                <p class="ex-label"><span class="hu">Példa:</span><span class="en">Example:</span></p>
+                <div class="ex-line">
+                    <span class="ts-chip parity">1</span>
+                    <span><span class="hu">jobb nyíl (&rarr;)</span><span class="en">right arrow (&rarr;)</span></span>
+                </div>
+                <div class="ex-line">
+                    <span class="ts-chip parity">8</span>
+                    <span><span class="hu">bal nyíl (&larr;)</span><span class="en">left arrow (&larr;)</span></span>
+                </div>
+            </div>`;
+
+            const RULE_MAGNITUDE = `
+            <div class="rule">
+                <p>
+                    <span class="hu"><strong>Kék</strong> háttér: nagyság &ndash; ha a szám <strong>5-nél kisebb</strong>, a
+                        <strong>bal</strong> (&larr;), ha <strong>5-nél nagyobb</strong>, a <strong>jobb</strong> (&rarr;)
+                        nyilat nyomja le minél gyorsabban!</span>
+                    <span class="en"><strong>Blue</strong> background: magnitude &ndash; if the number is <strong>less than 5</strong> press
+                        <strong>left</strong> (&larr;), if it is <strong>greater than 5</strong> press <strong>right</strong> (&rarr;),
+                        as quickly as you can!</span>
+                </p>
+                <p class="ex-label"><span class="hu">Példa:</span><span class="en">Example:</span></p>
+                <div class="ex-line">
+                    <span class="ts-chip magnitude">1</span>
+                    <span><span class="hu">bal nyíl (&larr;)</span><span class="en">left arrow (&larr;)</span></span>
+                </div>
+                <div class="ex-line">
+                    <span class="ts-chip magnitude">8</span>
+                    <span><span class="hu">jobb nyíl (&rarr;)</span><span class="en">right arrow (&rarr;)</span></span>
+                </div>
+            </div>`;
+
+            const BOTH_RULES = RULE_PARITY + RULE_MAGNITUDE;
+
+            const START_LINE = `
+            <p class="go">
+                <span class="hu">A <kbd>SPACE</kbd> gombbal kezdhet.</span>
+                <span class="en">Press <kbd>SPACE</kbd> to start.</span>
+            </p>`;
+
+            const CONTINUE_LINE = `
+            <p class="go">
+                <span class="hu">A <kbd>SPACE</kbd> gombbal folytathatja.</span>
+                <span class="en">Press <kbd>SPACE</kbd> to continue.</span>
+            </p>`;
+
+
             // instructions
             var instructions = {
                 type : jsPsychHtmlKeyboardResponse,
                 choices : [' '],
                 stimulus : `
-                    <div class="instructions-text"><p>
-                        <span class="hu">A képernyő közepén egy számjegy jelenik meg színes háttéren. A háttér színe jelzi a feladatot.
-                            <strong>Sárga</strong> háttér: paritás — páros szám → <strong>bal (←)</strong>, páratlan → <strong>jobb (→)</strong>.
-                            <strong>Kék</strong> háttér: nagyság — 5-nél kisebb → <strong>bal (←)</strong>, nagyobb → <strong>jobb (→)</strong>.
-                            A SPACE gombbal kezdhet.</span>
-                        <span class="en">A digit appears in the middle of the screen on a coloured background. The colour signals the task.
-                            <strong>Yellow</strong> background: parity — even → <strong>left (←)</strong>, odd → <strong>right (→)</strong>.
-                            <strong>Blue</strong> background: magnitude — less than 5 → <strong>left (←)</strong>, greater → <strong>right (→)</strong>.
-                            Press SPACE to start.</span>
-                    </p></div>
+                    <div class="instr">
+                        <p class="lead">
+                            <span class="hu">A képernyő közepén egy számjegy jelenik meg színes háttéren, amivel kapcsolatban
+                                két feladat lesz. Az első két blokkban egyféle feladatot kell végrehajtani, a további
+                                blokkokban pedig ezek vegyesen szerepelnek. A feladatot a háttér színe jelzi.</span>
+                            <span class="en">A digit appears in the middle of the screen on a coloured background, and there are
+                                two tasks connected to it. In the first two blocks you do one task at a time; in the later
+                                blocks the two are mixed. The background colour tells you which task to do.</span>
+                        </p>
+                        ${BOTH_RULES}
+                        ${START_LINE}
+                    </div>
                 `,
                 post_trial_gap : 2000
             };
@@ -217,7 +336,7 @@ window.addEventListener('keydown', function (e) {
                     // only track previous task across mixed trials
                     previousTask = (data.block_type === 'mixed') ? data.ts_task : null;
                 }
-            };            
+            };
 
             // making blocks
             function makeBlock(n) {
@@ -234,44 +353,70 @@ window.addEventListener('keydown', function (e) {
                 };
             }
 
+            /* Pure-block screen: names the colour and the decision for THIS task
+               only, then repeats that one rule with its examples. */
             function pureBlockInst(task) {
-                const en = (document.documentElement.lang === 'en');
                 const isParity = (task === 'parity');
+                const lead = isParity
+                    ? `<span class="hu">Most csak egyféle feladat következik. A képernyő közepén egy számjegy jelenik meg
+                          <strong>sárga</strong> háttéren, amivel kapcsolatban el kell döntenie, hogy páros, vagy páratlan.</span>
+                       <span class="en">Now only one task follows. A digit appears in the middle of the screen on a
+                          <strong>yellow</strong> background, and you decide whether it is even or odd.</span>`
+                    : `<span class="hu">Most csak egyféle feladat következik. A képernyő közepén egy számjegy jelenik meg
+                          <strong>kék</strong> háttéren, amivel kapcsolatban el kell döntenie, hogy kisebb, vagy nagyobb 5-nél.</span>
+                       <span class="en">Now only one task follows. A digit appears in the middle of the screen on a
+                          <strong>blue</strong> background, and you decide whether it is less than or greater than 5.</span>`;
+
                 return {
                     type: jsPsychHtmlKeyboardResponse,
                     choices: [' '],
                     stimulus: `
-                    <div class="instructions-text"><p>
-                        <span class="hu">Most csak <strong>egyféle</strong> feladat következik:
-                        ${isParity ? 'paritás (páros ← / páratlan →).' : 'nagyság (kisebb ← / nagyobb → mint 5).'}
-                        A SPACE gombbal kezdhet.</span>
-                        <span class="en">Now only <strong>one</strong> task:
-                        ${isParity ? 'parity (even ← / odd →).' : 'magnitude (less ← / greater → than 5).'}
-                        Press SPACE to start.</span>
-                    </p></div>`,
+                    <div class="instr">
+                        <p class="lead">${lead}</p>
+                        ${isParity ? RULE_PARITY : RULE_MAGNITUDE}
+                        ${START_LINE}
+                    </div>`,
                     post_trial_gap: 800
                 };
             }
 
+            /* Break screen: restates both rules in full. By this point in the
+               session the colour-to-task mapping is easy to lose, and the
+               participant has not seen enough trials for it to be automatic. */
             function betweenBlockInst(blockNum) {
                 return {
                     type: jsPsychHtmlKeyboardResponse,
                     choices: [' '],
                     stimulus: `
-                    <div class="instructions-text"><p>
-                        <span class="hu">A(z) ${blockNum}. blokk vége. Nyomja meg a SPACE gombot a folytatáshoz.</span>
-                        <span class="en">End of block ${blockNum}. Press SPACE to continue.</span>
-                    </p></div>`,
+                    <div class="instr">
+                        <p>
+                            <span class="hu">A(z) ${blockNum}. blokk vége. Pihenjen, ameddig szeretne.</span>
+                            <span class="en">End of block ${blockNum}. Take a break for as long as you like.</span>
+                        </p>
+                        <p class="lead">
+                            <span class="hu"><strong>A feladat változatlan:</strong> a képernyő közepén egy számjegy jelenik meg
+                                színes háttéren, amivel kapcsolatban két feladat lesz.</span>
+                            <span class="en"><strong>The task is unchanged:</strong> a digit appears in the middle of the screen
+                                on a coloured background, with two tasks connected to it.</span>
+                        </p>
+                        ${BOTH_RULES}
+                        ${CONTINUE_LINE}
+                    </div>`,
                     post_trial_gap: 800
                 };
             }
 
             // Mixed block = 12 trials, ~2.45s/trial => ~29s per block
-            // blocks (~10 trials each) add ~1 min. 
+            // blocks (~10 trials each) add ~1 min.
             // Short ~3min, Medium ~5min, Long ~10min
             const REPS = 12;                                        // trials per mixed block
             const PURE_REPS = 10;                                   // trials per pure baseline block
             const LENGTHS = { short: 5, medium: 9, long: 19 };      // mixed blocks per duration
+
+            /* The opening text says the first two blocks are single-task, so the
+               mixed blocks are numbered from 3 onwards. Set to 0 to number the
+               mixed blocks 1..N instead. */
+            const BLOCK_NUMBER_OFFSET = 2;
 
             ceChooseDuration().then(function (choice) {
                 const N_BLOCKS = LENGTHS[choice];
@@ -288,17 +433,21 @@ window.addEventListener('keydown', function (e) {
                     type: jsPsychHtmlKeyboardResponse,
                     choices: [' '],
                     stimulus: `
-                    <div class="instructions-text"><p>
-                        <span class="hu">Most a két feladat <strong>váltakozni</strong> fog a háttérszín szerint.
-                        Figyelje a színt minden próbánál! A SPACE gombbal kezdhet.</span>
-                        <span class="en">Now the two tasks will <strong>alternate</strong> by background colour.
-                        Watch the colour on every trial! Press SPACE to start.</span>
-                    </p></div>`,
+                    <div class="instr">
+                        <p class="lead">
+                            <span class="hu">Mostantól a két feladat <strong>váltakozni</strong> fog a háttérszín szerint.
+                                Figyelje a színt minden próbánál!</span>
+                            <span class="en">From now on the two tasks will <strong>alternate</strong> according to the background
+                                colour. Check the colour on every trial!</span>
+                        </p>
+                        ${BOTH_RULES}
+                        ${START_LINE}
+                    </div>`,
                     post_trial_gap: 800
                 });
                 for (let b = 1; b <= N_BLOCKS; b++) {
                     timeline.push(makeBlock(REPS));
-                    if (b < N_BLOCKS) timeline.push(betweenBlockInst(b));
+                    if (b < N_BLOCKS) timeline.push(betweenBlockInst(b + BLOCK_NUMBER_OFFSET));
                 }
 
                 // "debriefing" == charted result screening
@@ -345,7 +494,7 @@ window.addEventListener('keydown', function (e) {
 
                 jsPsych.run(timeline);
             });
-            
+
         </script>
     </body>
 </html>
