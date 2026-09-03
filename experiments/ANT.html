@@ -352,13 +352,19 @@ window.addEventListener('keydown', function (e) {
             stimulus: function(){
                 const cueType = jsPsych.evaluateTimelineVariable('cue');
                 const pos = jsPsych.evaluateTimelineVariable('position');
-                let cues = `<div class="ant-fix">+</div>`
+                const star = asteriskSVG(CUE_SIZE);
+
+                /* The CENTRE cue replaces the fixation cross (classic ANT):
+                   the cross is simply not drawn, so nothing shows through. */
+                   // somehow it still shows through ***
+                let cues = (cueType === 'center') ? '' : `<div class="ant-fix">+</div>`;
+
                 if(cueType === 'center'){
-                    cues += `<div class="ant-cue center">*</div>`;
+                    cues += `<div class="ant-cue center">${star}</div>`;
                 } else if(cueType === 'double'){
-                    cues += `<div class="ant-cue top">*</div><div class="ant-cue bottom">*</div>`;
+                    cues += `<div class="ant-cue top">${star}</div><div class="ant-cue bottom">${star}</div>`;
                 } else if(cueType === 'spatial'){
-                    cues += `<div class="ant-cue ${pos}">*</div>`;
+                    cues += `<div class="ant-cue ${pos}">${star}</div>`;
                 }
                 return `<div class="ant-stage">${cues}</div>`
             },
@@ -416,10 +422,15 @@ window.addEventListener('keydown', function (e) {
             return {
                 type: jsPsychHtmlKeyboardResponse,
                 stimulus: `
-                <div class="instructions-text">
+                <div class="instr">
                     <p>
-                        <span class="hu">Blokk ${blockNum} vége. Szünet következik, amíg a SPACE gombot meg nem nyomja.</span>
-                        <span class="en">End of block ${blockNum}. Take a break, press SPACE when you are ready to continue.</span>
+                        <span class="hu">A(z) ${blockNum}. blokk vége. Pihenjen, ameddig szeretne.</span>
+                        <span class="en">End of block ${blockNum}. Take a break for as long as you like.</span>
+                    </p>
+                    ${keyList}
+                    <p class="go">
+                        <span class="hu"><kbd>SPACE</kbd> — folytatás</span>
+                        <span class="en"><kbd>SPACE</kbd> — continue</span>
                     </p>
                 </div>`,
                 choices: [' '],
@@ -465,7 +476,7 @@ window.addEventListener('keydown', function (e) {
 
                     return {
                         rows: rows,
-                        chart: {
+                        /*chart: {
                             kind: 'bar',
                             title: en ? 'Reaction time by cue type' : 'Reakcióidő jelzéstípusonként',
                             bars: [
@@ -474,11 +485,11 @@ window.addEventListener('keydown', function (e) {
                                 { label: en ? 'Double'  : 'Dupla',    value: rtDoubleCue,  unit: 'ms' },
                                 { label: en ? 'Spatial' : 'Téri',     value: rtSpatialCue, unit: 'ms' }
                             ]
-                        }
+                        }*/
                     };
                 }
             }));
-            
+
             jsPsych.run(timeline);
         });
 
