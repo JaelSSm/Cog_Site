@@ -237,7 +237,6 @@ window.addEventListener('keydown', function (e) {
 
         }
 
-
         const CUE_DURATION = 150;
         const CUES = ['none', 'center', 'double', 'spatial'];
         const CONG = ['congruent', 'incongruent', 'neutral'];
@@ -260,23 +259,77 @@ window.addEventListener('keydown', function (e) {
         const timeline = [];
 
 
-        // instructions
+        /* instructions */
+
+        /* A miniature of one trial, so the participant knows what to expect. */
+        const sampleSequence = `
+        <div class="seq">
+            <div class="seq-step">
+                <div class="seq-box"><div class="seq-fix">+</div></div>
+                <div class="seq-cap"><span class="hu">Kereszt</span><span class="en">Fixation cross</span></div>
+            </div>
+            <div class="seq-join">&rarr;</div>
+            <div class="seq-step">
+                <div class="seq-box">
+                    <div class="seq-fix">+</div>
+                    <div class="seq-cue top">${asteriskSVG(15)}</div>
+                </div>
+                <div class="seq-cap"><span class="hu">Jelzés (csillag)</span><span class="en">Cue (asterisk)</span></div>
+            </div>
+            <div class="seq-join">&rarr;</div>
+            <div class="seq-step">
+                <div class="seq-box"><div class="seq-fix">+</div></div>
+                <div class="seq-cap"><span class="hu">Rövid szünet</span><span class="en">Short pause</span></div>
+            </div>
+            <div class="seq-join">&rarr;</div>
+            <div class="seq-step">
+                <div class="seq-box">
+                    <div class="seq-fix">+</div>
+                    <div class="seq-tgt">${targetRow('left', 'incongruent')}</div>
+                </div>
+                <div class="seq-cap"><span class="hu">Nyilak — válaszoljon</span><span class="en">Arrows — respond</span></div>
+            </div>
+        </div>`;
+
+        const keyList = `
+        <ul class="keys">
+            <li>
+                <span><span class="hu">A középső nyíl balra mutat</span><span class="en">Middle arrow points left</span></span>
+                <span><kbd>&larr;</kbd></span>
+            </li>
+            <li>
+                <span><span class="hu">A középső nyíl jobbra mutat</span><span class="en">Middle arrow points right</span></span>
+                <span><kbd>&rarr;</kbd></span>
+            </li>
+        </ul>`;
+
         timeline.push({
             type: jsPsychHtmlKeyboardResponse,
             choices: [' '],
             stimulus:`
-            <div class="instructions-text">
-            <p>
-              <span class="hu">Tartsa a tekintetét a középső kereszten. Amikor megjelennek a nyilak,
-                döntse el a lehető leggyorsabban a <strong>középső</strong> nyíl irányát:
-                balra mutat → <strong>bal nyíl</strong> billentyű, jobbra mutat → <strong>jobb nyíl</strong> billentyű.
-                A csillag(ok) csak jelzés — figyelmen kívül hagyhatja. A SPACE gombbal kezdhet.</span>
-              <span class="en">Keep your gaze on the central cross. When the arrows appear,
-                decide as quickly as possible the direction of the <strong>central</strong> arrow:
-                points left → <strong>left arrow</strong> key, points right → <strong>right arrow</strong> key.
-                The asterisk(s) are only a cue — you may ignore them. Press SPACE to start.</span>
-            </p>
-          </div>`,
+            <div class="instr">
+                <h2><span class="hu">Figyelmi hálózat</span><span class="en">Attention Network Task</span></h2>
+                ${sampleSequence}
+                <p>
+                    <span class="hu">Nézze végig a keresztet a képernyő közepén. A nyilak sora a kereszt fölött
+                        vagy alatt jelenik meg — döntse el, merre mutat a <strong>középső</strong> nyíl.</span>
+                    <span class="en">Keep your eyes on the cross in the middle of the screen. A row of arrows appears
+                        above or below it — decide which way the <strong>middle</strong> arrow points.</span>
+                </p>
+                ${keyList}
+                <p class="hint">
+                    <span class="hu">A csillag csak jelzés: néha megmutatja, hol jönnek a nyilak, néha nem.
+                        A szélső nyilak félrevezethetik — hagyja őket figyelmen kívül.
+                        Válaszoljon minél gyorsabban és pontosabban.</span>
+                    <span class="en">The asterisk is only a cue: sometimes it shows where the arrows will appear, sometimes not.
+                        The outer arrows can mislead you — ignore them.
+                        Respond as quickly and accurately as you can.</span>
+                </p>
+                <p class="go">
+                    <span class="hu"><kbd>SPACE</kbd> — indítás</span>
+                    <span class="en"><kbd>SPACE</kbd> — start</span>
+                </p>
+            </div>`,
           post_trial_gap: 500
         });
 
