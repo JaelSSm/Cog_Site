@@ -15,12 +15,6 @@
 </head>
 <body>
 <script>
-/* ------------------------------------------------------------------
-   Reference-back (Rac-Lubashevsky & Kessler, 2016)
-   Section I  — identity:   X -> A (left)   O -> L (right)
-   Section II — reference:  match -> L (right)   mismatch -> A (left)
-                red frame updates the held reference, blue does not.
-   ------------------------------------------------------------------ */
 
 /* restore saved language (always ends with a concrete value) */
 try {
@@ -28,8 +22,10 @@ try {
     document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
 } catch (e) { document.documentElement.lang = 'hu'; }
 
-/* ---- cog_site build 2026-08-14-c — REFBACK ---- */
-console.log('[cog_site] REFBACK build 2026-08-14-c');
+/* cog_site build 2026-09-02-a — REFBACK */
+/*
+console.log('[cog_site] REFBACK build 2026-09-02-a');
+*/
 
 /* Stop SPACE and the arrow keys from scrolling the page mid-trial.
    preventDefault only — jsPsych's own listener still receives the event. */
@@ -52,15 +48,11 @@ const jsPsych = initJsPsych();
 
 const timeline = [];
 
-/* ---- reference state bridge -------------------------------------
-   jsPsych v8 evaluates `data` BEFORE on_start runs, so anything written
-   to trial.data inside on_start is discarded. These module-level vars
-   are the snapshot that carries state from on_start into on_finish.  */
 let currentReference = null;
 let pendingReference = null;
 let pendingIsMatch   = null;
 
-/* ---- shared components ------------------------------------------ */
+/* shared components */
 const fixation = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: '<div class="fixation">+</div>',
@@ -71,14 +63,21 @@ const fixation = {
     data: { task: 'fixation' }
 };
 
-/* FIXED: renders the coloured frame; `frame` is actually used. */
+/* Renders the coloured frame; `frame` is actually used */
 function frameStim(letter, frame) {
     return `<div class="refback-frame ${frame}">
                 <span class="refback-letter">${letter}</span>
             </div>`;
 }
 
-/* ---- Section I: identity ----------------------------------------- */
+/* Same stimulus at instruction-screen size. */
+function miniStim(letter, frame) {
+    return `<div class="refback-frame mini ${frame}">
+                <span class="refback-letter">${letter}</span>
+            </div>`;
+}
+
+/* Section I: identity */
 function buildIdentityList(n) {
     const list = [];
     for (let i = 0; i < n; i++) {
@@ -115,7 +114,7 @@ function identityBlock(n) {
     return { timeline: [fixation, identityTrial], timeline_variables: buildIdentityList(n) };
 }
 
-/* ---- Section II: reference-back ---------------------------------- */
+/* Section II: reference-back */
 function buildRefbackList(n) {
     const list = [];
     /* trial 0 is the designated reference -> always red, never scored */
@@ -175,86 +174,142 @@ function refbackBlock(n) {
     return { timeline: [fixation, refbackTrial], timeline_variables: buildRefbackList(n) };
 }
 
-/* ---- instruction screens ----------------------------------------- */
-function breakScreen(num) {
+/* instruction content */
+
+/* Section I: what a trial looks like and which key goes with which letter. */
+const briefIdentity = `
+<div class="demo">
+    <div class="demo-step">
+        ${miniStim('X', 'blue')}
+        <div class="demo-cap"><span class="hu">X betű</span><span class="en">letter X</span></div>
+    </div>
+    <div class="demo-step">
+        ${miniStim('O', 'red')}
+        <div class="demo-cap"><span class="hu">O betű</span><span class="en">letter O</span></div>
+    </div>
+</div>
+<p>
+    <span class="hu">Betűk jelennek meg egy színes keretben. Most csak a <strong>betű</strong> számít —
+        a keret színe nem.</span>
+    <span class="en">Letters appear inside a coloured frame. For now only the <strong>letter</strong> matters —
+        the frame colour does not.</span>
+</p>
+<ul class="keys">
+    <li>
+        <span><span class="hu">A betű <strong>X</strong></span><span class="en">The letter is <strong>X</strong></span></span>
+        <kbd>A</kbd>
+    </li>
+    <li>
+        <span><span class="hu">A betű <strong>O</strong></span><span class="en">The letter is <strong>O</strong></span></span>
+        <kbd>L</kbd>
+    </li>
+</ul>`;
+
+/* Section II: a worked four-trial sequence, since the rule is easier to see
+   than to read. */
+const briefRefback = `
+<div class="demo">
+    <div class="demo-step">
+        ${miniStim('X', 'red')}
+        <div class="demo-cap"><span class="hu">piros keret &mdash; ezt jegyezze meg</span><span class="en">red frame &mdash; remember this one</span></div>
+    </div>
+    <div class="demo-join">&rarr;</div>
+    <div class="demo-step">
+        ${miniStim('X', 'blue')}
+        <div class="demo-cap"><span class="hu">megegyezik &rarr; <kbd>L</kbd></span><span class="en">matches &rarr; <kbd>L</kbd></span></div>
+    </div>
+    <div class="demo-join">&rarr;</div>
+    <div class="demo-step">
+        ${miniStim('O', 'blue')}
+        <div class="demo-cap"><span class="hu">különbözik &rarr; <kbd>A</kbd></span><span class="en">differs &rarr; <kbd>A</kbd></span></div>
+    </div>
+    <div class="demo-join">&rarr;</div>
+    <div class="demo-step">
+        ${miniStim('O', 'red')}
+        <div class="demo-cap"><span class="hu">új piros &mdash; mostantól ez az emlékezet</span><span class="en">new red &mdash; this replaces it</span></div>
+    </div>
+</div>
+<p>
+    <span class="hu">Tartsa fejben a legutóbbi <strong>piros keretes</strong> betűt, és minden képhez
+        hasonlítsa hozzá az éppen látott betűt.</span>
+    <span class="en">Hold the most recent <strong>red-framed</strong> letter in mind, and compare
+        every letter you see against it.</span>
+</p>
+<ul class="keys">
+    <li>
+        <span><span class="hu">Megegyezik a piros keretes betűvel</span><span class="en">Same as the red-framed letter</span></span>
+        <kbd>L</kbd>
+    </li>
+    <li>
+        <span><span class="hu">Különbözik tőle</span><span class="en">Different from it</span></span>
+        <kbd>A</kbd>
+    </li>
+</ul>
+<p class="hint">
+    <span class="hu">A piros keret kettőt kér: válaszoljon rá, és attól kezdve azt tartsa fejben.
+        A kék keret csak összehasonlítás — nem cseréli le az emlékezetben tartott betűt.</span>
+    <span class="en">A red frame does two jobs: answer for it, then hold it in mind from that point on.
+        A blue frame is only a comparison — it does not replace the letter you are holding.</span>
+</p>`;
+
+/* instruction screens */
+function introScreen(titleHu, titleEn, brief) {
     return {
         type: jsPsychHtmlKeyboardResponse,
         choices: [' '],
-        stimulus: `<div class="instructions-text"><p>
-            <span class="hu">A(z) ${num}. blokk vége. Nyomja meg a SPACE gombot a folytatáshoz.</span>
-            <span class="en">End of block ${num}. Press SPACE to continue.</span>
-        </p></div>`,
+        stimulus: `
+        <div class="instr">
+            <h2><span class="hu">${titleHu}</span><span class="en">${titleEn}</span></h2>
+            ${brief}
+            <p class="go">
+                <span class="hu"><kbd>SPACE</kbd> — indítás</span>
+                <span class="en"><kbd>SPACE</kbd> — start</span>
+            </p>
+        </div>`,
         post_trial_gap: 600
     };
 }
 
-/* FIXED: name is `imgInstr` (matches the call sites) and the Hungarian
-   parameter is spelled correctly. */
-function imgInstr(imgBase, htmlHu, htmlEn) {
+/* Between blocks the whole brief is shown again, so the rule never has to be
+   recalled from the start of the section. */
+function breakScreen(num, brief) {
     return {
         type: jsPsychHtmlKeyboardResponse,
         choices: [' '],
-        stimulus: function () {
-            const en  = (document.documentElement.lang === 'en');
-            const src = imgBase + (en ? '_en.png' : '_hu.png');
-            return `<div class="instructions-text">
-                <img src="${src}" alt=""
-                     style="max-width:100%;height:auto;margin:0 auto 1.2rem;display:block;"
-                     onerror="this.style.display='none';">
-                <p>
-                    <span class="hu">${htmlHu}</span>
-                    <span class="en">${htmlEn}</span>
-                </p>
-                <p style="font-size:14px;opacity:0.6;">
-                    <span class="hu">SPACE = tovább</span>
-                    <span class="en">SPACE = continue</span>
-                </p>
-            </div>`;
-        },
+        stimulus: `
+        <div class="instr">
+            <p>
+                <span class="hu">A(z) ${num}. blokk vége. Pihenjen, ameddig szeretne.</span>
+                <span class="en">End of block ${num}. Take a break for as long as you like.</span>
+            </p>
+            ${brief}
+            <p class="go">
+                <span class="hu"><kbd>SPACE</kbd> — folytatás</span>
+                <span class="en"><kbd>SPACE</kbd> — continue</span>
+            </p>
+        </div>`,
         post_trial_gap: 600
     };
 }
 
-const introIdentity = imgInstr(
-    'images/refback_section1',
-    `Ebben a feladatban betűket lát egy színes keretben. Csak a betűre figyeljen:
-     ha <strong>X</strong>-et lát, nyomja meg az <strong>A</strong> (bal) gombot;
-     ha <strong>O</strong>-t lát, nyomja meg az <strong>L</strong> (jobb) gombot, minél gyorsabban.
-     A keret színe most nem számít.`,
-    `In this task you will see letters inside a coloured frame. Respond to the letter only:
-     if you see <strong>X</strong>, press <strong>A</strong> (left);
-     if you see <strong>O</strong>, press <strong>L</strong> (right), as quickly as possible.
-     The frame colour does not matter here.`
-);
+const introIdentity = introScreen('I. szakasz &mdash; betűk', 'Section I &mdash; letters', briefIdentity);
+const introRefback  = introScreen('II. szakasz &mdash; visszacsatolás', 'Section II &mdash; reference-back', briefRefback);
 
-const introRefback = imgInstr(
-    'images/refback_section2',
-    `Most a <strong>piros</strong> keretes betűk fontosak. Mindig a legutoljára látott
-     <strong>piros keretes</strong> betűhöz hasonlítsa az éppen látott betűt:
-     ha <strong>megegyezik</strong> vele, nyomja meg az <strong>L</strong> (jobb) gombot;
-     ha <strong>különbözik</strong>, az <strong>A</strong> (bal) gombot.
-     Az első piros betű csak a kiindulópont — arra bármelyik gombbal válaszolhat.`,
-    `Now the <strong>red</strong>-framed letters matter. Always compare the current letter to the
-     most recent <strong>red-framed</strong> letter: if it <strong>matches</strong>,
-     press <strong>L</strong> (right); if it <strong>differs</strong>, press <strong>A</strong> (left).
-     The first red letter is just the starting reference — you may respond with either key to it.`
-);
-
-/* ---- timeline ----------------------------------------------------
+/* timeline
    ~2.3 s per trial (fixation ~0.75 s + response ~1.5 s), two sections.
    trials/section = target_seconds / (2 x 2.3)                        */
 const LENGTHS      = { short: 40, medium: 65, long: 130 };  // trials per section
 const BLOCK_LENGTH = 32;                                    // break every 32 trials
 
-function section(nTotal, builder, blockOffset) {
+function section(nTotal, builder, brief) {
     const nodes = [];
-    let done = 0, blockNum = blockOffset;
+    let done = 0, blockNum = 1;
     while (done < nTotal) {
         const size = Math.min(BLOCK_LENGTH, nTotal - done);
         nodes.push(builder(size));
         done += size;
+        if (done < nTotal) nodes.push(breakScreen(blockNum, brief));
         blockNum++;
-        if (done < nTotal) nodes.push(breakScreen(blockNum - 1));
     }
     return nodes;
 }
@@ -263,7 +318,7 @@ ceChooseDuration().then(function (choice) {
     const N = LENGTHS[choice] || LENGTHS.medium;
 
     timeline.push(introIdentity);
-    section(N, identityBlock, 1).forEach(n => timeline.push(n));
+    section(N, identityBlock, briefIdentity).forEach(n => timeline.push(n));
 
     timeline.push(introRefback);
     /* reset the reference before Section II */
@@ -274,7 +329,7 @@ ceChooseDuration().then(function (choice) {
         stimulus: '',
         on_start: function () { currentReference = null; }
     });
-    section(N, refbackBlock, 1).forEach(n => timeline.push(n));
+    section(N, refbackBlock, briefRefback).forEach(n => timeline.push(n));
 
     timeline.push(ceResultsScreen(jsPsych, {
         compute: function (jp) {
@@ -312,7 +367,10 @@ ceChooseDuration().then(function (choice) {
             rows.push({ label_hu: 'I. szakasz — reakcióidő',  label_en: 'Section I — reaction time',  value: idRt + ' ms' });
             rows.push({ label_hu: 'II. szakasz — reakcióidő', label_en: 'Section II — reaction time', value: rbRt + ' ms' });
             rows.push({ label_hu: 'Reakcióidő — egyezés',     label_en: 'RT — match',                 value: rtMatch + ' ms' });
-            rows.push({ label_hu: 'Reakcióidő — eltérés',     label_en: 'RT — mismatch',              value: rtMismatch + ' ms' });
+            rows.push({ label_hu: 'Reakcióidő — eltérés',     label_en: 'RT — mismatch',           value: rtMismatch + ' ms' });
+            rows.push({ label_hu: 'Frissitési költség',     label_en: 'No Switch',           value: ((rtMismatch-rtMatch)-(rtMismatch-rtMatch)) + ' ms' });
+            rows.push({ label_hu: 'Kapunyitás',     label_en: 'Gate opening',           value: (Switchref-NoSwitchref) + ' ms' });
+            rows.push({ label_hu: 'Kapiuzárás',     label_en: 'Gate Closing',           value: (Sitchcomp - NoSwitchcomp) + ' ms' });
 
             return {
                 rows: rows,
@@ -322,7 +380,10 @@ ceChooseDuration().then(function (choice) {
                     bars: [
                         { label: en ? 'Section I' : 'I. szakasz', value: idRt,       unit: 'ms' },
                         { label: en ? 'Match'     : 'Egyezés',    value: rtMatch,    unit: 'ms' },
-                        { label: en ? 'Mismatch'  : 'Eltérés',    value: rtMismatch, unit: 'ms' }
+                        { label: en ? 'Mismatch'  : 'Eltérés',    value: rtMismatch, unit: 'ms' },
+                        {label: en ? 'Refresh cost' : 'No switch', value: rtMismatch - rtMatch, unit: 'ms'},
+                        {label: en ? 'Gate opening' : 'Reference', value: rtMismatch - rtMatch, unit: 'ms'},
+                        {label: en ? 'Gate closing' : 'Comparison', value: rtMismatch - rtMatch, unit: 'ms'},
                     ]
                 }
             };
