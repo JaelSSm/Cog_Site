@@ -186,9 +186,6 @@
             document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
         } catch (e) { document.documentElement.lang = 'hu'; }
 
-/* ---- cog_site build 2026-08-14-c — ANT ---- */
-console.log('[cog_site] ANT build 2026-08-14-c');
-
 /* Stop SPACE and the arrow keys from scrolling the page mid-trial.
    preventDefault only — jsPsych's own listener still receives the event. */
 window.addEventListener('keydown', function (e) {
@@ -205,11 +202,27 @@ window.addEventListener('keydown', function (e) {
 
         // stimuli
         const LARR = '\u2190', RARR = '\u2192', DASH = '\u2014';  // ← → —
+
+        const CUE_SIZE = 30 // px - smaller than the 46px arrows
     
+        function asteriskSVG(size) {
+            const c = size / 2, r = size * 0.46;
+            let lines = '';
+            for (let i = 0; i < 3; i++) {
+                const a  = (i * 60 + 90) * Math.PI / 180;
+                const dx = Math.cos(a) * r, dy = Math.sin(a) * r;
+                lines += `<line x1="${(c - dx).toFixed(2)}" y1="${(c - dy).toFixed(2)}" `
+                       + `x2="${(c + dx).toFixed(2)}" y2="${(c + dy).toFixed(2)}"/>`;
+            }
+            return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">`
+                 + `<g stroke="currentColor" stroke-width="${(size * 0.15).toFixed(2)}" stroke-linecap="round">`
+                 + `${lines}</g></svg>`;
+        }
+
         // building the arrows
         // congruent: flankers are same as center
         // in-congruent: flankers are opposite from center
-        // neutral: on direction
+        // neutral: no direction
         function targetRow(direction, congruency) {
             const center = (direction === 'left') ? LARR : RARR;
             let flank;
@@ -221,21 +234,10 @@ window.addEventListener('keydown', function (e) {
                 flank = (direction === 'left') ? RARR : LARR;
             }
             return flank + flank + center + flank + flank;
-            
+
         }
 
 
-        /* ---- tunable demo parameters --------------------------------
-           CUE_DURATION: how long the asterisk stays on screen. The published
-           ANT uses 100 ms, which pupils often miss entirely. 150 ms is easier
-           to see and still too brief to move the eyes to.
-
-           CUES: the cue conditions. Only 'spatial' tells you WHERE the arrows
-           will appear; 'center' and 'double' only tell you WHEN. 'none' gives
-           neither. To make the spatial cue more frequent for a demo, list it
-           more than once, e.g.
-               const CUES = ['none', 'center', 'double', 'spatial', 'spatial'];
-           The orienting score stays valid — it compares centre vs spatial. */
         const CUE_DURATION = 150;
         const CUES = ['none', 'center', 'double', 'spatial'];
         const CONG = ['congruent', 'incongruent', 'neutral'];
