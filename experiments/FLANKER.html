@@ -139,9 +139,9 @@
                 document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
             } catch (e) { document.documentElement.lang = 'hu'; }
 
-/* cog_site build 2026-09-02-a — FLANKER  */
+/* cog_site build 2026-09-05-a — FLANKER  */
 /*
-console.log('[cog_site] FLANKER build 2026-09-02-a');
+console.log('[cog_site] FLANKER build 2026-09-05-a');
 */
 
 /* Stop SPACE and the arrow keys from scrolling the page mid-trial.
@@ -151,6 +151,11 @@ window.addEventListener('keydown', function (e) {
         e.preventDefault();
     }
 }, { passive: false });
+
+/* ESC leaves the experiment. First press opens a confirm panel, a second
+   press returns to the page the participant arrived from. Pass
+   { confirm: false } to leave on the first press instead. */
+ceEnableExit();
 
 
             /* response keys */
