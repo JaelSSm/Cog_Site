@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
         <title> Figyelmi hálózat (ANT) </title>
-        
+
         <script src="https://unpkg.com/jspsych@8.2.3"></script>
         <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
         <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" />
@@ -35,6 +35,7 @@
             @media (prefers-color-scheme: dark) {
             body { background: #181612; color: #E8E3D6; }
             }
+
 
             /* Stimulus rendering */
             .ant-stage{
@@ -187,6 +188,10 @@
             document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
         } catch (e) { document.documentElement.lang = 'hu'; }
 
+/* cog_site build 2026-09-05-a — ANT  */
+/*
+console.log('[cog_site] ANT build 2026-09-05-a');
+*/
 /* Stop SPACE and the arrow keys from scrolling the page mid-trial.
    preventDefault only — jsPsych's own listener still receives the event. */
 window.addEventListener('keydown', function (e) {
@@ -194,6 +199,11 @@ window.addEventListener('keydown', function (e) {
         e.preventDefault();
     }
 }, { passive: false });
+
+/* ESC leaves the experiment. First press opens a confirm panel, a second
+   press returns to the page the participant arrived from. Pass
+   { confirm: false } to leave on the first press instead. */
+ceEnableExit();
 
 
 
@@ -204,8 +214,10 @@ window.addEventListener('keydown', function (e) {
         // stimuli
         const LARR = '\u2190', RARR = '\u2192', DASH = '\u2014';  // ← → —
 
-        const CUE_SIZE = 30 // px - smaller than the 46px arrows
-    
+        /* Cue asterisk drawn as three lines through the centre of the viewBox.
+           Deterministically centred, and CUE_SIZE controls it in one place. */
+        const CUE_SIZE = 30;   // px — smaller than the 46px arrows
+
         function asteriskSVG(size) {
             const c = size / 2, r = size * 0.46;
             let lines = '';
@@ -237,6 +249,7 @@ window.addEventListener('keydown', function (e) {
             return flank + flank + center + flank + flank;
 
         }
+
 
         const CUE_DURATION = 150;
         const CUES = ['none', 'center', 'double', 'spatial'];
@@ -383,7 +396,7 @@ window.addEventListener('keydown', function (e) {
             data: {task:'fixation2'}
         };
 
-        //4. target (until response)
+        //4. target - until response
         const target = {
             type: jsPsychHtmlKeyboardResponse,
             stimulus: function(){
@@ -397,6 +410,7 @@ window.addEventListener('keydown', function (e) {
             },
             choices: [KEY_LEFT, KEY_RIGHT],
             trial_duration: 1700,
+            response_ends_trial: true,
             data: {
                 task: 'response',
                 cue: jsPsych.timelineVariable('cue'),
