@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" />
     <script src="ce-duration.js"></script>
     <script src="ce-chart.js"></script>
+    <script src="ce-exit.js"></script>
 
     <link rel="stylesheet" href="REFBACK.css" />
 </head>
@@ -22,9 +23,9 @@ try {
     document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
 } catch (e) { document.documentElement.lang = 'hu'; }
 
-/* cog_site build 2026-09-02-a — REFBACK */
+/* cog_site build 2026-09-05-a — REFBACK */
 /*
-console.log('[cog_site] REFBACK build 2026-09-02-a');
+console.log('[cog_site] REFBACK build 2026-09-05-a');
 */
 
 /* Stop SPACE and the arrow keys from scrolling the page mid-trial.
@@ -34,6 +35,11 @@ window.addEventListener('keydown', function (e) {
         e.preventDefault();
     }
 }, { passive: false });
+
+/* ESC leaves the experiment. First press opens a confirm panel, a second
+   press returns to the page the participant arrived from. Pass
+   { confirm: false } to leave on the first press instead. */
+ceEnableExit();
 
 
 /* response keys */
@@ -51,6 +57,18 @@ const timeline = [];
 let currentReference = null;
 let pendingReference = null;
 let pendingIsMatch   = null;
+
+/* Reference-back needs each Section II trial classified two ways:
+     trial_kind  'ref'  = red frame, the reference must be updated
+                 'comp' = blue frame, compare only
+     switch_kind 'switch'   = trial_kind differs from the previous trial
+                 'noswitch' = same as the previous trial
+                 'first'    = 
+   previousKind is the running state; the two pending* vars are the snapshot
+   bridge, because jsPsych v8 evaluates `data` before on_start runs. */
+let previousKind  = null;
+let pendingKind   = null;
+let pendingSwitch = null;
 
 /* shared components */
 const fixation = {
@@ -153,10 +171,18 @@ const refbackTrial = {
         pendingReference = currentReference;
         const thisLetter = jsPsych.evaluateTimelineVariable('letter');
         pendingIsMatch = (currentReference !== null) ? (thisLetter === currentReference) : null;
+
+        const thisFrame = jsPsych.evaluateTimelineVariable('frame');
+        pendingKind   = (thisFrame === 'red') ? 'ref' : 'comp';
+        pendingSwitch = (previousKind === null) ? 'first'
+                      : (pendingKind === previousKind) ? 'noswitch'
+                      : 'switch';
     },
     on_finish: function (data) {
         data.reference_before = pendingReference;
         data.is_match         = pendingIsMatch;
+        data.trial_kind       = pendingKind;
+        data.switch_kind      = pendingSwitch;
 
         if (data.is_designator || pendingReference === null) {
             data.correct = null;                    // unscored reference trial
@@ -167,6 +193,10 @@ const refbackTrial = {
         }
         /* red frame updates the held reference, blue does not */
         if (data.frame === 'red') currentReference = data.letter;
+
+        /* The designator is unscored but still counts as a presented ref trial,
+           so the trial after it is correctly classed as a switch or not. */
+        previousKind = pendingKind;
     }
 };
 
@@ -327,7 +357,7 @@ ceChooseDuration().then(function (choice) {
         choices: "NO_KEYS",
         trial_duration: 1,
         stimulus: '',
-        on_start: function () { currentReference = null; }
+        on_start: function () { currentReference = null; previousKind = null; }
     });
     section(N, refbackBlock, briefRefback).forEach(n => timeline.push(n));
 
@@ -350,10 +380,54 @@ ceChooseDuration().then(function (choice) {
 
             const missed = (id.count() - idAnswered.count()) + (scored.count() - rbAnswered.count());
 
-            const idRt       = Math.round(idCorrect.select('rt').mean()) || 0;
-            const rtMatch    = Math.round(rbCorrect.filter({ is_match: true  }).select('rt').mean()) || 0;
-            const rtMismatch = Math.round(rbCorrect.filter({ is_match: false }).select('rt').mean()) || 0;
-            const rbRt       = Math.round(rbCorrect.select('rt').mean()) || 0;
+            const idRt = Math.round(idCorrect.select('rt').mean()) || 0;
+            const rbRt = Math.round(rbCorrect.select('rt').mean()) || 0;
+
+            /* Mean RT of a cell, or null when the cell is empty. NOT `|| 0`:
+               a zero would silently pass through the subtractions below and
+               produce a large fake indicator out of missing data. */
+            function cellRt(sel) {
+                const m = Math.round(rbCorrect.filter(sel).select('rt').mean());
+                return isFinite(m) ? m : null;
+            }
+
+            /* The four no-switch cells the updating cost is built from.
+               M  = match, MM = mismatch; ref = red frame, comp = blue frame. */
+            const Mref    = cellRt({ trial_kind: 'ref',  switch_kind: 'noswitch', is_match: true  });
+            const MMref   = cellRt({ trial_kind: 'ref',  switch_kind: 'noswitch', is_match: false });
+            const Mcomp   = cellRt({ trial_kind: 'comp', switch_kind: 'noswitch', is_match: true  });
+            const MMcomp  = cellRt({ trial_kind: 'comp', switch_kind: 'noswitch', is_match: false });
+
+            /* Switch vs no-switch, collapsed across match and mismatch. */
+            const Swref   = cellRt({ trial_kind: 'ref',  switch_kind: 'switch'   });
+            const NoSwref = cellRt({ trial_kind: 'ref',  switch_kind: 'noswitch' });
+            const Swcomp  = cellRt({ trial_kind: 'comp', switch_kind: 'switch'   });
+            const NoSwcomp= cellRt({ trial_kind: 'comp', switch_kind: 'noswitch' });
+
+            /* Every indicator is a difference of means, so any missing cell
+               makes the whole indicator undefined rather than merely smaller. */
+            function ms(v) {
+                return (v === null || !isFinite(v)) ? '—' : ((v > 0 ? '+' : '') + Math.round(v) + ' ms');
+            }
+            function has() {
+                return Array.prototype.every.call(arguments, function (v) { return v !== null; });
+            }
+
+            /* Updating cost, on no-switch trials only:
+                   (MMref − Mref) − (MMcomp − Mcomp)
+               A mismatch on a reference trial forces working memory to be
+               rewritten; on a comparison trial the same mismatch costs nothing
+               extra. The difference of differences isolates the rewrite. */
+            const updatingCost = has(MMref, Mref, MMcomp, Mcomp)
+                ? (MMref - Mref) - (MMcomp - Mcomp) : null;
+
+            /* Gate opening: moving INTO a reference trial, i.e. the gate to
+               working memory has to be opened.   Swref − NoSwref */
+            const gateOpening = has(Swref, NoSwref) ? (Swref - NoSwref) : null;
+
+            /* Gate closing: moving INTO a comparison trial, i.e. the gate has
+               to be shut again.                   Swcomp − NoSwcomp */
+            const gateClosing = has(Swcomp, NoSwcomp) ? (Swcomp - NoSwcomp) : null;
 
             const rows = [
                 { label_hu: 'Helyes válaszok', label_en: 'Correct responses',
@@ -366,26 +440,36 @@ ceChooseDuration().then(function (choice) {
             }
             rows.push({ label_hu: 'I. szakasz — reakcióidő',  label_en: 'Section I — reaction time',  value: idRt + ' ms' });
             rows.push({ label_hu: 'II. szakasz — reakcióidő', label_en: 'Section II — reaction time', value: rbRt + ' ms' });
-            rows.push({ label_hu: 'Reakcióidő — egyezés',     label_en: 'RT — match',                 value: rtMatch + ' ms' });
-            rows.push({ label_hu: 'Reakcióidő — eltérés',     label_en: 'RT — mismatch',           value: rtMismatch + ' ms' });
-            rows.push({ label_hu: 'Frissitési költség',     label_en: 'No Switch',           value: ((rtMismatch-rtMatch)-(rtMismatch-rtMatch)) + ' ms' });
-            rows.push({ label_hu: 'Kapunyitás',     label_en: 'Gate opening',           value: (Switchref-NoSwitchref) + ' ms' });
-            rows.push({ label_hu: 'Kapiuzárás',     label_en: 'Gate Closing',           value: (Sitchcomp - NoSwitchcomp) + ' ms' });
+
+            rows.push({ label_hu: 'Frissítési költség (no switch)',
+                        label_en: 'Updating cost (no switch)',
+                        value: ms(updatingCost) });
+            rows.push({ label_hu: 'Kapunyitás (Swref − NoSwref)',
+                        label_en: 'Gate opening (Swref − NoSwref)',
+                        value: ms(gateOpening) });
+            rows.push({ label_hu: 'Kapuzárás (Swcomp − NoSwcomp)',
+                        label_en: 'Gate closing (Swcomp − NoSwcomp)',
+                        value: ms(gateClosing) });
 
             return {
                 rows: rows,
+                /* The four no-switch cells, i.e. the raw material of the
+                   updating cost. Charted rather than the indicators themselves,
+                   because the indicators can go negative and the bar chart has
+                   no room below the baseline. */
                 chart: {
                     kind: 'bar',
-                    title: en ? 'Reaction time by trial type' : 'Reakcióidő próbatípusonként',
+                    title: en ? 'Reaction time on no-switch trials' : 'Reakcióidő a no-switch próbákon',
                     bars: [
-                        { label: en ? 'Section I' : 'I. szakasz', value: idRt,       unit: 'ms' },
-                        { label: en ? 'Match'     : 'Egyezés',    value: rtMatch,    unit: 'ms' },
-                        { label: en ? 'Mismatch'  : 'Eltérés',    value: rtMismatch, unit: 'ms' },
-                        {label: en ? 'Refresh cost' : 'No switch', value: rtMismatch - rtMatch, unit: 'ms'},
-                        {label: en ? 'Gate opening' : 'Reference', value: rtMismatch - rtMatch, unit: 'ms'},
-                        {label: en ? 'Gate closing' : 'Comparison', value: rtMismatch - rtMatch, unit: 'ms'},
+                        { label: 'Mref',   value: Mref   || 0, unit: 'ms' },
+                        { label: 'MMref',  value: MMref  || 0, unit: 'ms' },
+                        { label: 'Mcomp',  value: Mcomp  || 0, unit: 'ms' },
+                        { label: 'MMcomp', value: MMcomp || 0, unit: 'ms' }
                     ]
-                }
+                },
+                /* Shown under the chart. Both empty = nothing renders. */
+                note_hu: '',
+                note_en: ''
             };
         }
     }));
