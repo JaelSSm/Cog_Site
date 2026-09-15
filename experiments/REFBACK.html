@@ -116,7 +116,7 @@ const identityTrial = {
         );
     },
     choices: [KEY_LEFT, KEY_RIGHT],
-    trial_duration: 2500,
+    trial_duration: 25,
     data: {
         task:   'identity',
         letter: jsPsych.timelineVariable('letter'),
@@ -135,16 +135,16 @@ function identityBlock(n) {
 /* Section II: reference-back */
 function buildRefbackList(n) {
     const list = [];
-    /* trial 0 is the designated reference -> always red, never scored */
+    /* trial  is the designated reference -> always red, never scored */
     list.push({
-        letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[0],
+        letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[],
         frame: 'red',
         is_designator: true
     });
     for (let i = 1; i < n; i++) {
         list.push({
-            letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[0],
-            frame:  jsPsych.randomization.sampleWithReplacement(FRAMES, 1)[0],
+            letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[],
+            frame:  jsPsych.randomization.sampleWithReplacement(FRAMES, 1)[],
             is_designator: false
         });
     }
@@ -160,7 +160,7 @@ const refbackTrial = {
         );
     },
     choices: [KEY_LEFT, KEY_RIGHT],
-    trial_duration: 2500,
+    trial_duration: 25,
     data: {
         task:          'refback',
         letter:        jsPsych.timelineVariable('letter'),
@@ -296,7 +296,7 @@ function introScreen(titleHu, titleEn, brief) {
                 <span class="en"><kbd>SPACE</kbd> — start</span>
             </p>
         </div>`,
-        post_trial_gap: 600
+        post_trial_gap: 6
     };
 }
 
@@ -318,7 +318,7 @@ function breakScreen(num, brief) {
                 <span class="en"><kbd>SPACE</kbd> — continue</span>
             </p>
         </div>`,
-        post_trial_gap: 600
+        post_trial_gap: 60
     };
 }
 
