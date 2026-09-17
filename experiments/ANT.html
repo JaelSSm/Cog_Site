@@ -16,7 +16,7 @@
         <style>
 
             /* jsPsych v8: .jspsych-content collapses to zero WIDTH inside the
-               flex wrapper. Give it explicit width and centre it. */
+               flex wrapper. Give it explicit width and centre it */
             html, body { min-height: 100vh; margin: 0; }
             .jspsych-display-element { width: 100%; min-height: 100vh; }
             .jspsych-content-wrapper { width: 100%; }
@@ -45,8 +45,6 @@
                 margin: 0 auto;
             }
 
-            /* Everything on the stage is anchored by its own centre, so the
-               cue and the target row sit on exactly the same two rows. */
             .ant-fix {
                 position: absolute;
                 top: 50%; left: 50%;
@@ -55,9 +53,6 @@
                 line-height: 1;
             }
 
-            /* The cue is an SVG asterisk: geometrically centred inside its own
-               box, so translate(-50%,-50%) puts it exactly on the row.
-               A text "*" sits high in the line box and would not line up. */
             .ant-cue {
                 position: absolute;
                 left: 50%;
@@ -68,27 +63,9 @@
             @media (prefers-color-scheme: dark) {
                 .ant-cue { color: #E0A24A; }
             }
+            .ant-cue.center { top: 50%; }
             .ant-cue.top    { top: 25%; }
             .ant-cue.bottom { top: 75%; }
-
-            /* The centre cue carries an opaque disc behind the asterisk. The
-               cross is already not drawn on centre-cue trials, so this is
-               belt-and-braces — it guarantees occlusion whatever else ends up
-               on the stage. Remove background/width/height/display to go back
-               to a bare asterisk. */
-            .ant-cue.center {
-                top: 50%;
-                width: 66px;
-                height: 66px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 50%;
-                background: #FBF7EE;
-            }
-            @media (prefers-color-scheme: dark) {
-                .ant-cue.center { background: #181612; }
-            }
 
             .ant-target{
                 position: absolute;
@@ -199,28 +176,20 @@
     <body>
 
     <script>
-        /* restore saved language — always ends with a concrete value, otherwise
-           <html> has no lang and BOTH languages render at once */
         try {
             const savedLang = localStorage.getItem('ce.lang');
             document.documentElement.lang = (savedLang === 'hu' || savedLang === 'en') ? savedLang : 'hu';
         } catch (e) { document.documentElement.lang = 'hu'; }
 
-/* cog_site build 2026-09-17-a — ANT  */
-console.log('[cog_site] ANT build 2026-09-17-a');
-
-/* Stop SPACE and the arrow keys from scrolling the page mid-trial.
-   preventDefault only — jsPsych's own listener still receives the event. */
+/* Stop SPACE and the arrow keys from scrolling the page mid-trial*/
 window.addEventListener('keydown', function (e) {
     if ([' ', 'Spacebar', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(e.key) !== -1) {
         e.preventDefault();
     }
 }, { passive: false });
 
-/* ESC leaves the experiment. First press opens a confirm panel, a second
-   press returns to the page the participant arrived from. Pass
-   { confirm: false } to leave on the first press instead. */
-ceEnableExit({ href: '../ant.html' });
+/* 'ESC' leaves the experiment*/
+ceEnableExit();
 
 
 
@@ -231,8 +200,6 @@ ceEnableExit({ href: '../ant.html' });
         // stimuli
         const LARR = '\u2190', RARR = '\u2192', DASH = '\u2014';  // ← → —
 
-        /* Cue asterisk drawn as three lines through the centre of the viewBox.
-           Deterministically centred, and CUE_SIZE controls it in one place. */
         const CUE_SIZE = 30;   // px — smaller than the 46px arrows
 
         function asteriskSVG(size) {
@@ -274,10 +241,6 @@ ceEnableExit({ href: '../ant.html' });
         const DIR = ['left', 'right'];
         const POS = ['top', 'bottom'];
 
-        /* Which breakdown the chart shows: 'congruency' or 'cue'.
-           The other one still appears in the table either way. */
-        const CHART_BY = 'congruency';
-
         // 4x 3x 2x 2 = 48 unique trials
         function buildTrialList(reps){
             const list = [];
@@ -296,7 +259,7 @@ ceEnableExit({ href: '../ant.html' });
 
         /* instructions */
 
-        /* A miniature of one trial, so the participant knows what to expect. */
+        /* A miniature of one trial, so the participant knows what to expect*/
         const sampleSequence = `
         <div class="seq">
             <div class="seq-step">
@@ -370,7 +333,7 @@ ceEnableExit({ href: '../ant.html' });
 
 
         // trial components
-        //1. initial fixation (variable dur)
+        //1. initial fixation (variable duration)
         const fixation1 = {
             type: jsPsychHtmlKeyboardResponse,
             stimulus: '<div class="ant-stage"><div class="ant-fix">+</div></div>',
@@ -389,9 +352,6 @@ ceEnableExit({ href: '../ant.html' });
                 const pos = jsPsych.evaluateTimelineVariable('position');
                 const star = asteriskSVG(CUE_SIZE);
 
-                /* The CENTRE cue replaces the fixation cross (classic ANT):
-                   the cross is not drawn, and .ant-cue.center carries an opaque
-                   disc so nothing can show through behind the asterisk. */
                 let cues = (cueType === 'center') ? '' : `<div class="ant-fix">+</div>`;
 
                 if(cueType === 'center'){
@@ -484,7 +444,7 @@ ceEnableExit({ href: '../ant.html' });
                 if (b < N_BLOCKS) timeline.push(betweenBlockInst(b));
             }
 
-            // "debriefing" == charted result screening
+            // charted result screening
             timeline.push(ceResultsScreen(jsPsych,{
                 compute: function(jp){
                     const en = (document.documentElement.lang === 'en');
@@ -493,31 +453,12 @@ ceEnableExit({ href: '../ant.html' });
                     const correct  = trials.filter({ correct: true });
                     const wrong    = answered.count() - correct.count();
                     const missed   = trials.count() - answered.count();
+                    const meanRt   = function (sel) { return Math.round(correct.filter(sel).select('rt').mean()) || 0; };
 
-                    /* Mean RT of a cell, or null when the cell is empty.
-                       NOT `|| 0`: a zero would sail through the subtractions
-                       below and manufacture a large effect out of no data. */
-                    const cellRt = function (sel) {
-                        const m = Math.round(correct.filter(sel).select('rt').mean());
-                        return isFinite(m) ? m : null;
-                    };
-                    const ms = function (v) { return (v === null) ? '—' : v + ' ms'; };
-                    const diff = function (a, b) {
-                        if (a === null || b === null) return '—';
-                        const d = a - b;
-                        return (d > 0 ? '+' : '') + d + ' ms';
-                    };
-
-                    /* by cue type */
-                    const rtNoCue      = cellRt({ cue: 'none'    });
-                    const rtCenterCue  = cellRt({ cue: 'center'  });
-                    const rtDoubleCue  = cellRt({ cue: 'double'  });
-                    const rtSpatialCue = cellRt({ cue: 'spatial' });
-
-                    /* by congruency of the flanking arrows */
-                    const rtNeutral     = cellRt({ congruency: 'neutral'     });
-                    const rtCongruent   = cellRt({ congruency: 'congruent'   });
-                    const rtIncongruent = cellRt({ congruency: 'incongruent' });
+                    const rtNoCue      = meanRt({ cue: 'none'    });
+                    const rtCenterCue  = meanRt({ cue: 'center'  });
+                    const rtDoubleCue  = meanRt({ cue: 'double'  });
+                    const rtSpatialCue = meanRt({ cue: 'spatial' });
 
                     const rows = [
                         { label_hu: 'Helyes válaszok', label_en: 'Correct responses',   value: correct.count() },
@@ -529,57 +470,18 @@ ceEnableExit({ href: '../ant.html' });
                     rows.push({ label_hu: 'Átlagos reakcióidő', label_en: 'Mean reaction time',
                                 value: (Math.round(correct.select('rt').mean()) || 0) + ' ms' });
 
-                    /* congruency breakdown — the new comparison */
-                    rows.push({ label_hu: 'Reakcióidő — semleges',    label_en: 'RT — neutral',     value: ms(rtNeutral) });
-                    rows.push({ label_hu: 'Reakcióidő — kongruens',   label_en: 'RT — congruent',   value: ms(rtCongruent) });
-                    rows.push({ label_hu: 'Reakcióidő — inkongruens', label_en: 'RT — incongruent', value: ms(rtIncongruent) });
-
-                    /* cue breakdown */
-                    rows.push({ label_hu: 'Reakcióidő — nincs jelzés', label_en: 'RT — no cue',      value: ms(rtNoCue) });
-                    rows.push({ label_hu: 'Reakcióidő — központi',     label_en: 'RT — centre cue',  value: ms(rtCenterCue) });
-                    rows.push({ label_hu: 'Reakcióidő — dupla',        label_en: 'RT — double cue',  value: ms(rtDoubleCue) });
-                    rows.push({ label_hu: 'Reakcióidő — téri',         label_en: 'RT — spatial cue', value: ms(rtSpatialCue) });
-
-                    /* The three attention networks, as Fan et al. define them.
-                       Conflict is the congruent / incongruent comparison. */
-                    rows.push({ label_hu: 'Konfliktus (inkongruens − kongruens)',
-                                label_en: 'Conflict (incongruent − congruent)',
-                                value: diff(rtIncongruent, rtCongruent) });
-                    rows.push({ label_hu: 'Éberség (nincs jelzés − dupla jelzés)',
-                                label_en: 'Alerting (no cue − double cue)',
-                                value: diff(rtNoCue, rtDoubleCue) });
-                    rows.push({ label_hu: 'Orientáció (központi − téri jelzés)',
-                                label_en: 'Orienting (centre cue − spatial cue)',
-                                value: diff(rtCenterCue, rtSpatialCue) });
-
-                    /* One chart, picked by CHART_BY near the top of the file. */
-                    const congruencyChart = {
-                        kind: 'bar',
-                        title: en ? 'Reaction time by flanker congruency' : 'Reakcióidő a nyilak kongruenciája szerint',
-                        bars: [
-                            { label: en ? 'Neutral'     : 'Semleges',    value: rtNeutral     || 0, unit: 'ms' },
-                            { label: en ? 'Congruent'   : 'Kongruens',   value: rtCongruent   || 0, unit: 'ms' },
-                            { label: en ? 'Incongruent' : 'Inkongruens', value: rtIncongruent || 0, unit: 'ms' }
-                        ]
-                    };
-                    const cueChart = {
-                        kind: 'bar',
-                        title: en ? 'Reaction time by cue type' : 'Reakcióidő jelzéstípusonként',
-                        bars: [
-                            { label: en ? 'No cue'  : 'Nincs',    value: rtNoCue      || 0, unit: 'ms' },
-                            { label: en ? 'Center'  : 'Központi', value: rtCenterCue  || 0, unit: 'ms' },
-                            { label: en ? 'Double'  : 'Dupla',    value: rtDoubleCue  || 0, unit: 'ms' },
-                            { label: en ? 'Spatial' : 'Téri',     value: rtSpatialCue || 0, unit: 'ms' }
-                        ]
-                    };
-
                     return {
                         rows: rows,
-                        chart: (CHART_BY === 'cue') ? cueChart : congruencyChart,
-                        /* Free prose under the chart. Nothing renders while both
-                           are empty. */
-                        note_hu: '',
-                        note_en: ''
+                        chart: {
+                            kind: 'bar',
+                            title: en ? 'Reaction time by cue type' : 'Reakcióidő jelzéstípusonként',
+                            bars: [
+                                { label: en ? 'No cue'  : 'Nincs',    value: rtNoCue,      unit: 'ms' },
+                                { label: en ? 'Center'  : 'Központi', value: rtCenterCue,  unit: 'ms' },
+                                { label: en ? 'Double'  : 'Dupla',    value: rtDoubleCue,  unit: 'ms' },
+                                { label: en ? 'Spatial' : 'Téri',     value: rtSpatialCue, unit: 'ms' }
+                            ]
+                        }
                     };
                 }
             }));
