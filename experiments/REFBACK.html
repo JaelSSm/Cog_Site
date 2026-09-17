@@ -137,14 +137,14 @@ function buildRefbackList(n) {
     const list = [];
     /* trial  is the designated reference -> always red, never scored */
     list.push({
-        letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[],
+        letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[0],
         frame: 'red',
         is_designator: true
     });
     for (let i = 1; i < n; i++) {
         list.push({
-            letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[],
-            frame:  jsPsych.randomization.sampleWithReplacement(FRAMES, 1)[],
+            letter: jsPsych.randomization.sampleWithReplacement(LETTERS, 1)[0],
+            frame:  jsPsych.randomization.sampleWithReplacement(FRAMES, 1)[0],
             is_designator: false
         });
     }
