@@ -116,7 +116,7 @@ const identityTrial = {
         );
     },
     choices: [KEY_LEFT, KEY_RIGHT],
-    trial_duration: 25,
+    trial_duration: 2500,
     data: {
         task:   'identity',
         letter: jsPsych.timelineVariable('letter'),
@@ -296,7 +296,7 @@ function introScreen(titleHu, titleEn, brief) {
                 <span class="en"><kbd>SPACE</kbd> — start</span>
             </p>
         </div>`,
-        post_trial_gap: 6
+        post_trial_gap: 600
     };
 }
 
@@ -318,7 +318,7 @@ function breakScreen(num, brief) {
                 <span class="en"><kbd>SPACE</kbd> — continue</span>
             </p>
         </div>`,
-        post_trial_gap: 60
+        post_trial_gap: 600
     };
 }
 
