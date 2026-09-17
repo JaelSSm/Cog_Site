@@ -50,7 +50,7 @@ const KEY_RIGHT = 'l';
 const LETTERS = ['X', 'O'];
 const FRAMES  = ['red', 'blue'];
 
-const jsPsych = initJsPsych();
+const jsPsych = initJsPsych({minimum_valid_rt: 100}); // >100ms responses are discarded
 
 const timeline = [];
 
